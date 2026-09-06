@@ -172,6 +172,18 @@ function daysAgoStr(n){
   var d = new Date(Date.now() - n*86400000);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+function parseDurationToSec(s){
+  var parts = String(s||'').trim().split(':').map(Number);
+  if(!parts.length || parts.some(isNaN)) return null;
+  if(parts.length === 2) return parts[0]*60 + parts[1];
+  if(parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+  return null;
+}
+function formatPace(secPerKm){
+  var m = Math.floor(secPerKm/60), s = Math.round(secPerKm%60);
+  if(s === 60){ m++; s = 0; }
+  return m + ':' + String(s).padStart(2,'0');
+}
 
 /* ---------------- ローカル（デモ）バックエンド ---------------- */
 var LocalBackend = (function(){
@@ -199,10 +211,6 @@ var LocalBackend = (function(){
       var m = s.members.find(function(x){ return x.name.trim().toLowerCase() === n; });
       return m ? {id:m.id, name:m.name, role:m.role} : null;
     },
-    async getMemberWithPin(id){
-      var s = load();
-      return s.members.find(function(x){ return x.id === id; }) || null;
-    },
     async getMember(id){
       var s = load();
       var m = s.members.find(function(x){ return x.id === id; });
@@ -212,9 +220,9 @@ var LocalBackend = (function(){
       var s = load();
       return s.members.some(function(x){ return x.role === 'coach'; });
     },
-    async register(name, pin, role){
+    async register(name, role){
       var s = load();
-      var m = {id: uid(), name: name.trim(), pin: pin, role: role, created_at: new Date().toISOString()};
+      var m = {id: uid(), name: name.trim(), role: role, created_at: new Date().toISOString()};
       s.members.push(m); save(s);
       return {id:m.id, name:m.name, role:m.role};
     },
@@ -287,11 +295,6 @@ var SupabaseBackend = (function(){
       if(r.error) throw r.error;
       return r.data && r.data[0] ? r.data[0] : null;
     },
-    async getMemberWithPin(id){
-      var r = await client().from('members').select('id,name,role,pin').eq('id', id).single();
-      if(r.error) return null;
-      return r.data;
-    },
     async getMember(id){
       var r = await client().from('members').select('id,name,role').eq('id', id).single();
       if(r.error) return null;
@@ -302,8 +305,8 @@ var SupabaseBackend = (function(){
       if(r.error) throw r.error;
       return r.data.length > 0;
     },
-    async register(name, pin, role){
-      var r = await client().from('members').insert({name: name.trim(), pin: pin, role: role}).select('id,name,role').single();
+    async register(name, role){
+      var r = await client().from('members').insert({name: name.trim(), role: role}).select('id,name,role').single();
       if(r.error) throw r.error;
       return r.data;
     },
@@ -449,30 +452,17 @@ async function renderLoginCard(){
 
   card.innerHTML =
       '<div class="field"><label>名前</label><select id="loginName">'+opts+'</select></div>'
-    + '<div class="field"><label>PIN（4桁）</label><input id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••"></div>'
-    + '<button id="loginBtn" style="width:100%">入る</button>'
+    + '<button id="loginBtn" style="width:100%">この名前で入る</button>'
     + '<div class="msg" id="loginMsg"></div>';
 
-  $('loginBtn').onclick = async function(){
+  $('loginBtn').onclick = function(){
     var id = $('loginName').value;
-    var pin = $('loginPin').value.trim();
-    if(!pin){ showMsg('loginMsg','err','PINを入力してください。'); return; }
-    $('loginBtn').disabled = true;
-    try{
-      var m = await Backend.getMemberWithPin(id);
-      if(!m || m.pin !== pin){
-        showMsg('loginMsg','err','PINが違います。もう一度確認してください。');
-        $('loginBtn').disabled = false;
-        return;
-      }
-      state.user = {id:m.id, name:m.name, role:m.role};
-      saveIdentity(state.user);
-      state.tab = 'input';
-      render();
-    }catch(e){
-      showMsg('loginMsg','err','エラーが発生しました：'+e.message);
-      $('loginBtn').disabled = false;
-    }
+    var m = members.find(function(x){ return x.id === id; });
+    if(!m) return;
+    state.user = {id:m.id, name:m.name, role:m.role};
+    saveIdentity(state.user);
+    state.tab = 'input';
+    render();
   };
 }
 
@@ -483,29 +473,26 @@ async function renderRegisterCard(){
 
   card.innerHTML =
       '<div class="field"><label>名前</label><input id="regName" type="text" placeholder="山田太郎"></div>'
-    + '<div class="field"><label>PIN（4〜6桁の数字・自分で決める）</label><input id="regPin" type="password" inputmode="numeric" maxlength="6" placeholder="1234"></div>'
     + (coachExists ? ''
         : '<div class="checkrow"><input type="checkbox" id="regCoach"><label style="margin:0" for="regCoach">自分は先生（指導者）です</label></div>')
     + '<button id="regBtn" style="width:100%">登録する</button>'
     + '<div class="msg" id="regMsg"></div>'
-    + '<p class="authnote">PINは端末に記憶されるので、毎回入力する必要はありません。他のメンバーと同じ名前は使えません。</p>';
+    + '<p class="authnote">名前は端末に記憶されるので、次回から選び直す必要はありません。他のメンバーと同じ名前は使えません。</p>';
 
   $('regBtn').onclick = async function(){
     var name = $('regName').value.trim();
-    var pin = $('regPin').value.trim();
     var isCoach = !coachExists && $('regCoach') && $('regCoach').checked;
     if(!name){ showMsg('regMsg','err','名前を入力してください。'); return; }
-    if(!/^[0-9]{4,6}$/.test(pin)){ showMsg('regMsg','err','PINは4〜6桁の数字で入力してください。'); return; }
 
     $('regBtn').disabled = true;
     try{
       var exists = await Backend.findByName(name);
       if(exists){
-        showMsg('regMsg','err','その名前は既に登録されています。ログイン画面からPINでログインしてください。');
+        showMsg('regMsg','err','その名前は既に登録されています。ログイン画面から選んでください。');
         $('regBtn').disabled = false;
         return;
       }
-      var m = await Backend.register(name, pin, isCoach ? 'coach' : 'member');
+      var m = await Backend.register(name, isCoach ? 'coach' : 'member');
       state.user = m;
       saveIdentity(m);
       state.tab = 'input';
@@ -574,17 +561,19 @@ async function renderMain(){
 async function renderInputTab(){
   var el = $('tabContent');
   var editing = state.editingRecord;
-  var lastCadence = '', lastGct = '';
+  var lastCadence = '', lastGct = '', lastRecord = null;
   if(!editing){
     var recent = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
     if(recent.length){
-      lastCadence = recent[0].cadence != null ? recent[0].cadence : '';
-      lastGct = recent[0].ground_contact_ms != null ? recent[0].ground_contact_ms : '';
+      lastRecord = recent[0];
+      lastCadence = lastRecord.cadence != null ? lastRecord.cadence : '';
+      lastGct = lastRecord.ground_contact_ms != null ? lastRecord.ground_contact_ms : '';
     }
   }
 
   el.innerHTML =
     '<section><h2>'+(editing ? '記録を編集' : '今日の記録')+'</h2>'
+    + (lastRecord ? '<button type="button" class="ghost tiny" id="copyLastBtn" style="margin-bottom:12px">前回の記録をコピー（'+esc(Number(lastRecord.distance_km).toFixed(2))+'km・'+esc(lastRecord.duration_text)+'）</button>' : '')
     + '<div class="card">'
     +   '<div class="grid g4">'
     +     '<div><label>日付</label><input type="date" id="fDate" value="'+esc(editing ? editing.date : todayStr())+'"></div>'
@@ -614,6 +603,30 @@ async function renderInputTab(){
       renderInputTab();
     };
   }
+
+  if($('copyLastBtn')){
+    $('copyLastBtn').onclick = function(){
+      $('fDist').value = lastRecord.distance_km;
+      $('fDuration').value = lastRecord.duration_text;
+      $('fPace').value = lastRecord.pace_text;
+      $('fHr').value = lastRecord.heart_rate;
+      $('fCadence').value = lastRecord.cadence != null ? lastRecord.cadence : '';
+      $('fGct').value = lastRecord.ground_contact_ms != null ? lastRecord.ground_contact_ms : '';
+      $('fRpe').value = lastRecord.rpe != null ? lastRecord.rpe : '';
+    };
+  }
+
+  function maybeAutoPace(){
+    if($('fPace').value.trim()) return;
+    var dist = parseFloat($('fDist').value);
+    var durSec = parseDurationToSec($('fDuration').value);
+    if(dist > 0 && durSec > 0){
+      $('fPace').value = formatPace(durSec / dist);
+    }
+  }
+  $('fDist').addEventListener('input', maybeAutoPace);
+  $('fDuration').addEventListener('input', maybeAutoPace);
+  $('fPace').addEventListener('input', function(){ if(!$('fPace').value.trim()) maybeAutoPace(); });
 
   $('submitBtn').onclick = async function(){
     var dist = parseFloat($('fDist').value);

@@ -2,11 +2,10 @@
 -- Supabaseの「SQL Editor」にこのファイルの中身を全部貼り付けて実行してください。
 -- （手順の詳細は 20260906_セットアップ手順.md を参照）
 
--- メンバー（名前とPINでゆるく本人確認する）
+-- メンバー（名前だけで識別する。本格的な認証はなし）
 create table if not exists members (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  pin text not null,
   role text not null default 'member' check (role in ('member', 'coach')),
   created_at timestamptz not null default now()
 );
@@ -42,7 +41,7 @@ alter table members enable row level security;
 alter table records enable row level security;
 alter table race_config enable row level security;
 
--- このツールは「名前＋簡単なPIN」による軽い本人確認だけを想定しており、
+-- このツールは名前を選ぶだけの本人確認しか行わず、
 -- Supabase自体のログイン機能は使いません。そのためアクセスキー（anon key）を
 -- 持っている人（＝チームメンバー）は誰でも読み書きできる設定にしています。
 -- 少人数の信頼できるチーム内での利用を前提とした割り切りです。
