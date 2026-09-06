@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE FULL CREW | チーム記録ツール</title>
+<meta name="theme-color" content="#0d0a09">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%230d0a09'/%3E%3Ccircle cx='96' cy='96' r='58' fill='none' stroke='%23f0764a' stroke-width='10'/%3E%3Cpath d='M96 50v46l32 20' fill='none' stroke='%23f0764a' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0d0a09; --bg2:#14100e; --card:#1a1513; --card2:#211a17;
+    --line:#2e2521; --line2:#3d322c;
+    --accent:#f0764a; --accent-dim:#c9552f; --accent-soft:rgba(240,118,74,.12);
+    --text:#ede8e4; --muted:#9a8f88; --dim:#6d635d;
+    --ok:#4ec9a0; --warn:#e8b44a; --bad:#e8654a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    line-height:1.7; -webkit-font-smoothing:antialiased;
+    padding:0 0 80px;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:0 20px}
+  a{color:var(--accent)}
+
+  /* ---------- demo banner ---------- */
+  .demo-banner{
+    background:var(--warn);color:#241a06;padding:10px 16px;font-size:12.5px;
+    text-align:center;font-weight:700;
+  }
+  .demo-banner a{color:#241a06;text-decoration:underline}
+
+  /* ---------- header ---------- */
+  header{
+    background:linear-gradient(160deg,#1d1512 0%,var(--bg) 70%);
+    border-top:3px solid var(--accent);
+    padding:30px 0 24px; margin-bottom:28px;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    color:var(--accent); font-size:11px; font-weight:700;
+    letter-spacing:.18em; margin-bottom:10px;
+  }
+  h1{font-size:30px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+  h1 .the{display:block;font-size:18px;color:var(--dim);letter-spacing:.05em}
+  h1 .full{color:var(--accent)}
+  .sub{color:var(--muted);font-size:13px;margin-top:10px}
+  .countdown{
+    display:inline-block;margin-top:14px;padding:6px 14px;
+    background:var(--accent-soft);border:1px solid var(--accent-dim);
+    border-radius:100px;font-size:13px;font-weight:700;color:var(--accent);
+  }
+  .userbar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:18px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:12.5px;color:var(--muted);flex-wrap:wrap;gap:8px;
+  }
+  .userbar b{color:var(--text)}
+  .userbar button{background:none;border:0;color:var(--accent);font-weight:700;cursor:pointer;font-size:12.5px;padding:0}
+
+  /* ---------- badge ---------- */
+  .badge{display:inline-block;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.03em}
+  .badge.coach{background:var(--accent-soft);color:var(--accent)}
+  .badge.member{background:var(--card2);color:var(--muted);border:1px solid var(--line2)}
+
+  /* ---------- tabs ---------- */
+  .tabbar{display:flex;gap:22px;margin-bottom:24px;border-bottom:1px solid var(--line);overflow-x:auto}
+  .tab{padding:0 0 11px;font-size:13.5px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;background:none;border-top:0;border-left:0;border-right:0}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  /* ---------- section / card ---------- */
+  section{margin-bottom:34px}
+  h2{
+    font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--accent);
+    padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:18px;
+  }
+  .card{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:22px;margin-bottom:14px;
+  }
+  .card h3{font-size:15px;font-weight:700;margin-bottom:4px}
+  .card .note{color:var(--muted);font-size:12.5px}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-size:11px;font-weight:700;letter-spacing:.08em}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+
+  /* ---------- forms ---------- */
+  label{display:block;font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.06em;margin-bottom:5px}
+  input,select,textarea{
+    width:100%;background:var(--bg2);border:1px solid var(--line2);color:var(--text);
+    padding:9px 11px;border-radius:8px;font-size:14px;font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:64px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .field{margin-bottom:14px}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:620px){.g4{grid-template-columns:1fr 1fr}}
+  button{
+    background:var(--accent);color:#180d08;border:0;padding:10px 20px;border-radius:8px;
+    font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
+  button:hover{background:#ff8759}
+  button.ghost{background:transparent;border:1px solid var(--line2);color:var(--muted)}
+  button.ghost:hover{background:var(--card2);color:var(--text)}
+  button.tiny{padding:3px 9px;font-size:11px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin:12px 0}
+  .checkrow input{width:auto}
+
+  .msg{padding:11px 14px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
+  .msg.show{display:block}
+  .msg.ok{background:rgba(78,201,160,.1);border:1px solid rgba(78,201,160,.35);color:var(--ok)}
+  .msg.err{background:rgba(232,101,74,.1);border:1px solid rgba(232,101,74,.35);color:var(--bad)}
+
+  .empty{text-align:center;color:var(--dim);padding:26px;font-size:13px}
+  footer{text-align:center;color:var(--dim);font-size:11.5px;margin-top:44px;padding-top:22px;border-top:1px solid var(--line)}
+
+  /* ---------- auth screen ---------- */
+  .authwrap{max-width:400px;margin:0 auto;padding:48px 20px}
+  .authwrap .eyebrow{text-align:center}
+  .authwrap h1{text-align:center;margin-bottom:28px}
+  .switchrow{display:flex;gap:8px;margin-bottom:18px}
+  .switchrow button{flex:1;background:var(--card2);color:var(--muted);border:1px solid var(--line2)}
+  .switchrow button.active{background:var(--accent);color:#180d08;border-color:var(--accent)}
+  .authnote{font-size:11.5px;color:var(--dim);margin-top:10px}
+
+  /* ---------- coach view ---------- */
+  .memberCard{padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:12px}
+  .memberCard .mchead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:10px;flex-wrap:wrap}
+  .memberCard .mcname{font-size:15px;font-weight:700}
+  .memberCard .mclast{font-size:11.5px;color:var(--dim)}
+  .memberCard .mcstats{display:flex;gap:20px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .memberCard .mcstats b{color:var(--text);font-variant-numeric:tabular-nums;font-size:15px;display:block}
+  .memberCard .mcstats span{display:block;margin-top:2px}
+  .memberCard .mcnote{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="demoBanner"></div>
+<div id="app"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   バックエンド（データの保存先）を切り替える仕組み
+   ・config.js に本物のSupabase情報が入っていれば → Supabaseを使う（全員で共有）
+   ・入っていなければ → この端末のブラウザだけに保存する「デモモード」
+   ============================================================ */
+var DEMO_MODE = (typeof SUPABASE_URL === 'undefined' || !SUPABASE_URL || SUPABASE_URL.indexOf('YOUR_SUPABASE') === 0);
+
+function uid(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+function todayStr(){
+  var d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function daysAgoStr(n){
+  var d = new Date(Date.now() - n*86400000);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+/* ---------------- ローカル（デモ）バックエンド ---------------- */
+var LocalBackend = (function(){
+  var KEY = 'tfc_team_demo_v1';
+  function load(){
+    try{
+      var s = localStorage.getItem(KEY);
+      if(s) return JSON.parse(s);
+    }catch(e){}
+    return {
+      members: [],
+      records: [],
+      raceConfig: { race_name:'第74回 勝田全国マラソン', race_date:'2027-01-31', target_distance_km:42.195 }
+    };
+  }
+  function save(store){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
+
+  return {
+    async listMembers(){
+      var s = load();
+      return s.members.map(function(m){ return {id:m.id, name:m.name, role:m.role}; });
+    },
+    async findByName(name){
+      var s = load(); var n = name.trim().toLowerCase();
+      var m = s.members.find(function(x){ return x.name.trim().toLowerCase() === n; });
+      return m ? {id:m.id, name:m.name, role:m.role} : null;
+    },
+    async getMemberWithPin(id){
+      var s = load();
+      return s.members.find(function(x){ return x.id === id; }) || null;
+    },
+    async getMember(id){
+      var s = load();
+      var m = s.members.find(function(x){ return x.id === id; });
+      return m ? {id:m.id, name:m.name, role:m.role} : null;
+    },
+    async hasCoach(){
+      var s = load();
+      return s.members.some(function(x){ return x.role === 'coach'; });
+    },
+    async register(name, pin, role){
+      var s = load();
+      var m = {id: uid(), name: name.trim(), pin: pin, role: role, created_at: new Date().toISOString()};
+      s.members.push(m); save(s);
+      return {id:m.id, name:m.name, role:m.role};
+    },
+    async addRecord(memberId, data){
+      var s = load();
+      var r = Object.assign({id: uid(), member_id: memberId, created_at: new Date().toISOString()}, data);
+      s.records.push(r); save(s);
+      return r;
+    },
+    async listMyRecords(memberId){
+      var s = load();
+      return s.records.filter(function(r){ return r.member_id === memberId; })
+        .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+    },
+    async deleteRecord(id){
+      var s = load();
+      s.records = s.records.filter(function(r){ return r.id !== id; });
+      save(s);
+    },
+    async getRaceConfig(){
+      var s = load();
+      return s.raceConfig;
+    },
+    async setRaceConfig(data){
+      var s = load();
+      s.raceConfig = Object.assign({}, s.raceConfig, data);
+      save(s);
+    },
+    async coachOverview(){
+      var s = load();
+      var since30 = daysAgoStr(30), since7 = daysAgoStr(7);
+      return s.members.filter(function(m){ return m.role === 'member'; }).map(function(m){
+        var recs = s.records.filter(function(r){ return r.member_id === m.id; })
+          .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+        var last30 = recs.filter(function(r){ return r.date >= since30; });
+        var last7 = recs.filter(function(r){ return r.date >= since7; });
+        return {
+          id: m.id, name: m.name,
+          lastDate: recs.length ? recs[0].date : null,
+          last7km: last7.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          last30km: last30.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          lastMemo: recs.length ? recs[0].memo : '',
+          lastRpe: recs.length ? recs[0].rpe : null
+        };
+      });
+    }
+  };
+})();
+
+/* ---------------- Supabaseバックエンド ---------------- */
+var SupabaseBackend = (function(){
+  var sb = null;
+  function client(){
+    if(!sb) sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return sb;
+  }
+  return {
+    async listMembers(){
+      var r = await client().from('members').select('id,name,role').order('name');
+      if(r.error) throw r.error;
+      return r.data;
+    },
+    async findByName(name){
+      var r = await client().from('members').select('id,name,role').ilike('name', name.trim()).limit(1);
+      if(r.error) throw r.error;
+      return r.data && r.data[0] ? r.data[0] : null;
+    },
+    async getMemberWithPin(id){
+      var r = await client().from('members').select('id,name,role,pin').eq('id', id).single();
+      if(r.error) return null;
+      return r.data;
+    },
+    async getMember(id){
+      var r = await client().from('members').select('id,name,role').eq('id', id).single();
+      if(r.error) return null;
+      return r.data;
+    },
+    async hasCoach(){
+      var r = await client().from('members').select('id').eq('role','coach').limit(1);
+      if(r.error) throw r.error;
+      return r.data.length > 0;
+    },
+    async register(name, pin, role){
+      var r = await client().from('members').insert({name: name.trim(), pin: pin, role: role}).select('id,name,role').single();
+      if(r.error) throw r.error;
+      return r.data;
+    },
+    async addRecord(memberId, data){
+      var body = Object.assign({member_id: memberId}, data);
+      var r = await client().from('records').insert(body).select().single();
+      if(r.error) throw r.error;
+      return r.data;
+    },
+    async listMyRecords(memberId){
+      var r = await client().from('records').select('*').eq('member_id', memberId).order('date', {ascending:false});
+      if(r.error) throw r.error;
+      return r.data;
+    },
+    async deleteRecord(id){
+      var r = await client().from('records').delete().eq('id', id);
+      if(r.error) throw r.error;
+    },
+    async getRaceConfig(){
+      var r = await client().from('race_config').select('*').eq('id',1).single();
+      if(r.error) throw r.error;
+      return r.data;
+    },
+    async setRaceConfig(data){
+      var r = await client().from('race_config').update(Object.assign({}, data, {updated_at: new Date().toISOString()})).eq('id',1);
+      if(r.error) throw r.error;
+    },
+    async coachOverview(){
+      var since30 = daysAgoStr(30), since7 = daysAgoStr(7);
+      var mr = await client().from('members').select('id,name').eq('role','member').order('name');
+      if(mr.error) throw mr.error;
+      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe').gte('date', since30).order('date', {ascending:false});
+      if(rr.error) throw rr.error;
+      var byMember = {};
+      rr.data.forEach(function(rec){
+        (byMember[rec.member_id] = byMember[rec.member_id] || []).push(rec);
+      });
+      return mr.data.map(function(m){
+        var recs = byMember[m.id] || [];
+        var last7 = recs.filter(function(r){ return r.date >= since7; });
+        return {
+          id: m.id, name: m.name,
+          lastDate: recs.length ? recs[0].date : null,
+          last7km: last7.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          last30km: recs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          lastMemo: recs.length ? recs[0].memo : '',
+          lastRpe: recs.length ? recs[0].rpe : null
+        };
+      });
+    }
+  };
+})();
+
+var Backend = DEMO_MODE ? LocalBackend : SupabaseBackend;
+
+/* ============================================================
+   画面のロジック
+   ============================================================ */
+var $ = function(id){ return document.getElementById(id); };
+var app = $('app');
+
+var state = {
+  user: null,        // {id, name, role}
+  tab: 'input',       // 'input' | 'list' | 'coach'
+  authMode: 'login',  // 'login' | 'register'
+  raceConfig: null,
+  membersCache: []
+};
+
+function loadIdentity(){
+  try{
+    var s = localStorage.getItem('tfc_identity');
+    return s ? JSON.parse(s) : null;
+  }catch(e){ return null; }
+}
+function saveIdentity(u){ try{ localStorage.setItem('tfc_identity', JSON.stringify(u)); }catch(e){} }
+function clearIdentity(){ try{ localStorage.removeItem('tfc_identity'); }catch(e){} }
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+
+/* ---------------- デモバナー ---------------- */
+if(DEMO_MODE){
+  $('demoBanner').innerHTML = '<div class="demo-banner">🔧 デモモードで動作中：データはこの端末のブラウザだけに保存されます。'
+    + 'チーム全員で共有するには <code>20260906_セットアップ手順.md</code> の手順でSupabaseを設定してください。</div>';
+}
+
+/* ---------------- 起動 ---------------- */
+async function boot(){
+  var identity = loadIdentity();
+  if(identity){
+    var m = await Backend.getMember(identity.id).catch(function(){ return null; });
+    if(m){
+      state.user = m;
+    } else {
+      clearIdentity();
+    }
+  }
+  render();
+}
+
+/* ---------------- 認証画面 ---------------- */
+function renderAuth(){
+  app.innerHTML =
+    '<div class="authwrap">'
+    + '<div class="eyebrow">THE FULL CREW</div>'
+    + '<h1>記録ツール</h1>'
+    + '<div class="switchrow">'
+    +   '<button id="modeLogin" class="'+(state.authMode==='login'?'active':'')+'">ログイン</button>'
+    +   '<button id="modeRegister" class="'+(state.authMode==='register'?'active':'')+'">はじめての方</button>'
+    + '</div>'
+    + '<div class="card" id="authCard"></div>'
+    + '</div>';
+
+  $('modeLogin').onclick = function(){ state.authMode='login'; render(); };
+  $('modeRegister').onclick = function(){ state.authMode='register'; render(); };
+
+  if(state.authMode === 'login') renderLoginCard();
+  else renderRegisterCard();
+}
+
+async function renderLoginCard(){
+  var card = $('authCard');
+  card.innerHTML = '<p class="note">読み込み中…</p>';
+  var members = await Backend.listMembers().catch(function(){ return []; });
+
+  if(!members.length){
+    card.innerHTML = '<p class="note">まだ誰も登録されていません。「はじめての方」から最初のメンバー登録をしてください。</p>';
+    return;
+  }
+
+  var opts = members.map(function(m){
+    return '<option value="'+esc(m.id)+'">'+esc(m.name)+(m.role==='coach'?'（先生）':'')+'</option>';
+  }).join('');
+
+  card.innerHTML =
+      '<div class="field"><label>名前</label><select id="loginName">'+opts+'</select></div>'
+    + '<div class="field"><label>PIN（4桁）</label><input id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••"></div>'
+    + '<button id="loginBtn" style="width:100%">入る</button>'
+    + '<div class="msg" id="loginMsg"></div>';
+
+  $('loginBtn').onclick = async function(){
+    var id = $('loginName').value;
+    var pin = $('loginPin').value.trim();
+    if(!pin){ showMsg('loginMsg','err','PINを入力してください。'); return; }
+    $('loginBtn').disabled = true;
+    try{
+      var m = await Backend.getMemberWithPin(id);
+      if(!m || m.pin !== pin){
+        showMsg('loginMsg','err','PINが違います。もう一度確認してください。');
+        $('loginBtn').disabled = false;
+        return;
+      }
+      state.user = {id:m.id, name:m.name, role:m.role};
+      saveIdentity(state.user);
+      state.tab = 'input';
+      render();
+    }catch(e){
+      showMsg('loginMsg','err','エラーが発生しました：'+e.message);
+      $('loginBtn').disabled = false;
+    }
+  };
+}
+
+async function renderRegisterCard(){
+  var card = $('authCard');
+  card.innerHTML = '<p class="note">読み込み中…</p>';
+  var coachExists = await Backend.hasCoach().catch(function(){ return true; });
+
+  card.innerHTML =
+      '<div class="field"><label>名前</label><input id="regName" type="text" placeholder="山田太郎"></div>'
+    + '<div class="field"><label>PIN（4〜6桁の数字・自分で決める）</label><input id="regPin" type="password" inputmode="numeric" maxlength="6" placeholder="1234"></div>'
+    + (coachExists ? ''
+        : '<div class="checkrow"><input type="checkbox" id="regCoach"><label style="margin:0" for="regCoach">自分は先生（指導者）です</label></div>')
+    + '<button id="regBtn" style="width:100%">登録する</button>'
+    + '<div class="msg" id="regMsg"></div>'
+    + '<p class="authnote">PINは端末に記憶されるので、毎回入力する必要はありません。他のメンバーと同じ名前は使えません。</p>';
+
+  $('regBtn').onclick = async function(){
+    var name = $('regName').value.trim();
+    var pin = $('regPin').value.trim();
+    var isCoach = !coachExists && $('regCoach') && $('regCoach').checked;
+    if(!name){ showMsg('regMsg','err','名前を入力してください。'); return; }
+    if(!/^[0-9]{4,6}$/.test(pin)){ showMsg('regMsg','err','PINは4〜6桁の数字で入力してください。'); return; }
+
+    $('regBtn').disabled = true;
+    try{
+      var exists = await Backend.findByName(name);
+      if(exists){
+        showMsg('regMsg','err','その名前は既に登録されています。ログイン画面からPINでログインしてください。');
+        $('regBtn').disabled = false;
+        return;
+      }
+      var m = await Backend.register(name, pin, isCoach ? 'coach' : 'member');
+      state.user = m;
+      saveIdentity(m);
+      state.tab = 'input';
+      render();
+    }catch(e){
+      showMsg('regMsg','err','エラーが発生しました：'+e.message);
+      $('regBtn').disabled = false;
+    }
+  };
+}
+
+function showMsg(id, kind, text){
+  var el = $(id);
+  if(!el) return;
+  el.className = 'msg show '+kind;
+  el.textContent = text;
+}
+
+/* ---------------- メイン画面 ---------------- */
+async function renderMain(){
+  if(!state.raceConfig){
+    state.raceConfig = await Backend.getRaceConfig().catch(function(){
+      return {race_name:'目標大会未設定', race_date:null, target_distance_km:null};
+    });
+  }
+  var rc = state.raceConfig;
+  var days = rc.race_date ? Math.ceil((new Date(rc.race_date) - new Date())/86400000) : null;
+  var countdownText = (days === null) ? ''
+    : (days > 0 ? '🏅 '+esc(rc.race_name)+'まで あと '+days+' 日' : '🏅 '+esc(rc.race_name)+' 当日・お疲れさまでした！');
+
+  app.innerHTML =
+    '<header><div class="wrap">'
+    +   '<div class="eyebrow">THE FULL CREW — 記録ツール</div>'
+    +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
+    +   (countdownText ? '<div class="countdown">'+countdownText+'</div>' : '')
+    +   '<div class="userbar">'
+    +     '<div>ようこそ、<b>'+esc(state.user.name)+'</b>さん <span class="badge '+(state.user.role==='coach'?'coach':'member')+'">'+(state.user.role==='coach'?'先生':'メンバー')+'</span></div>'
+    +     '<button id="logoutBtn">別の人に切り替える</button>'
+    +   '</div>'
+    + '</div></header>'
+    + '<div class="wrap">'
+    +   '<div class="tabbar">'
+    +     '<button class="tab" data-tab="input">記録を入力</button>'
+    +     '<button class="tab" data-tab="list">記録一覧</button>'
+    +     (state.user.role==='coach' ? '<button class="tab" data-tab="coach">先生ビュー</button>' : '')
+    +   '</div>'
+    +   '<div id="tabContent"></div>'
+    + '</div>'
+    + '<footer>THE FULL CREW / '+esc(rc.race_name||'')+'<br>データの公開範囲：本人と先生のみを想定（技術的な厳密な非公開の保証はありません）</footer>';
+
+  document.querySelectorAll('.tab').forEach(function(btn){
+    if(btn.dataset.tab === state.tab) btn.classList.add('active');
+    btn.onclick = function(){ state.tab = btn.dataset.tab; render(); };
+  });
+  $('logoutBtn').onclick = function(){
+    clearIdentity();
+    state.user = null;
+    render();
+  };
+
+  if(state.tab === 'input') renderInputTab();
+  else if(state.tab === 'list') renderListTab();
+  else if(state.tab === 'coach') renderCoachTab();
+}
+
+function renderInputTab(){
+  var el = $('tabContent');
+  el.innerHTML =
+    '<section><h2>今日の記録</h2>'
+    + '<div class="card">'
+    +   '<div class="grid g4">'
+    +     '<div><label>日付</label><input type="date" id="fDate" value="'+todayStr()+'"></div>'
+    +     '<div><label>距離 (km)</label><input type="number" id="fDist" step="0.01" placeholder="10.00"></div>'
+    +     '<div><label>時間</label><input type="text" id="fDuration" placeholder="52:30"></div>'
+    +     '<div><label>ペース (分:秒/km)</label><input type="text" id="fPace" placeholder="5:15"></div>'
+    +   '</div>'
+    +   '<div class="grid g4" style="margin-top:12px">'
+    +     '<div><label>平均心拍 (bpm)</label><input type="number" id="fHr" placeholder="145"></div>'
+    +     '<div><label>ピッチ (spm・任意)</label><input type="number" id="fCadence" placeholder="172"></div>'
+    +     '<div><label>接地時間 (ms・任意)</label><input type="number" id="fGct" placeholder="245"></div>'
+    +     '<div><label>体感・RPE (任意)</label><select id="fRpe"><option value="">—</option>'
+    +       Array.from({length:10},function(_,i){ return i+1; }).map(function(n){ return '<option value="'+n+'">'+n+(n===1?' - とても楽':n===10?' - 全力':'')+'</option>'; }).join('')
+    +     '</select></div>'
+    +   '</div>'
+    +   '<div class="field" style="margin-top:12px"><label>メモ (任意)</label><textarea id="fMemo" placeholder="天候、体調、気づいたことなど"></textarea></div>'
+    +   '<button id="submitBtn" style="margin-top:6px">記録を追加</button>'
+    +   '<div class="msg" id="inputMsg"></div>'
+    + '</div></section>';
+
+  $('submitBtn').onclick = async function(){
+    var dist = parseFloat($('fDist').value);
+    var duration = $('fDuration').value.trim();
+    var pace = $('fPace').value.trim();
+    var hr = parseInt($('fHr').value, 10);
+    if(!$('fDate').value || !dist || !duration || !pace || !hr){
+      showMsg('inputMsg','err','日付・距離・時間・ペース・平均心拍は必須です。');
+      return;
+    }
+    var data = {
+      date: $('fDate').value,
+      distance_km: dist,
+      duration_text: duration,
+      pace_text: pace,
+      heart_rate: hr,
+      cadence: $('fCadence').value ? parseInt($('fCadence').value,10) : null,
+      ground_contact_ms: $('fGct').value ? parseInt($('fGct').value,10) : null,
+      rpe: $('fRpe').value ? parseInt($('fRpe').value,10) : null,
+      memo: $('fMemo').value.trim() || null
+    };
+    $('submitBtn').disabled = true;
+    try{
+      await Backend.addRecord(state.user.id, data);
+      showMsg('inputMsg','ok','記録を保存しました。');
+      ['fDist','fDuration','fPace','fHr','fCadence','fGct','fRpe','fMemo'].forEach(function(id){ $(id).value=''; });
+      $('fDate').value = todayStr();
+    }catch(e){
+      showMsg('inputMsg','err','保存に失敗しました：'+e.message);
+    }
+    $('submitBtn').disabled = false;
+  };
+}
+
+async function renderListTab(){
+  var el = $('tabContent');
+  el.innerHTML = '<section><h2>自分の記録一覧</h2><div class="card"><p class="note">読み込み中…</p></div></section>';
+  var records = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
+
+  var last7 = daysAgoStr(7), last30 = daysAgoStr(30);
+  var sum7 = records.filter(function(r){ return r.date >= last7; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
+  var sum30 = records.filter(function(r){ return r.date >= last30; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
+
+  var rows = !records.length
+    ? '<div class="empty">まだ記録がありません。「記録を入力」タブから追加してください。</div>'
+    : '<table><tr><th>日付</th><th>距離</th><th>時間</th><th>ペース</th><th>心拍</th><th>RPE</th><th></th></tr>'
+      + records.map(function(r){
+          return '<tr>'
+            + '<td>'+esc(r.date.slice(5).replace('-','/'))+'</td>'
+            + '<td class="num">'+Number(r.distance_km).toFixed(2)+'</td>'
+            + '<td class="num" style="color:var(--muted)">'+esc(r.duration_text)+'</td>'
+            + '<td class="num" style="color:var(--muted)">'+esc(r.pace_text)+'</td>'
+            + '<td class="num" style="color:var(--muted)">'+esc(r.heart_rate)+'</td>'
+            + '<td class="num" style="color:var(--muted)">'+(r.rpe||'—')+'</td>'
+            + '<td style="text-align:right"><button class="ghost tiny" data-del="'+esc(r.id)+'">削除</button></td>'
+            + '</tr>';
+        }).join('')
+      + '</table>';
+
+  el.innerHTML =
+    '<section><h2>自分の記録一覧</h2>'
+    + '<div class="card"><div class="grid g2">'
+    +   '<div><label>直近7日</label><div style="font-size:22px;font-weight:800">'+sum7.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
+    +   '<div><label>直近30日</label><div style="font-size:22px;font-weight:800">'+sum30.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
+    + '</div></div>'
+    + '<div class="card">'+rows+'</div>'
+    + '</section>';
+
+  document.querySelectorAll('[data-del]').forEach(function(btn){
+    btn.onclick = async function(){
+      if(!confirm('この記録を削除しますか？')) return;
+      await Backend.deleteRecord(btn.dataset.del);
+      renderListTab();
+    };
+  });
+}
+
+async function renderCoachTab(){
+  var el = $('tabContent');
+  var rc = state.raceConfig;
+  el.innerHTML =
+    '<section><h2>目標大会</h2>'
+    + '<div class="card">'
+    +   '<div class="grid g2">'
+    +     '<div><label>大会名</label><input id="rcName" value="'+esc(rc.race_name||'')+'"></div>'
+    +     '<div><label>大会日</label><input type="date" id="rcDate" value="'+esc(rc.race_date||'')+'"></div>'
+    +   '</div>'
+    +   '<div class="field" style="margin-top:12px;max-width:200px"><label>距離 (km)</label><input type="number" step="0.001" id="rcDist" value="'+esc(rc.target_distance_km||'')+'"></div>'
+    +   '<button id="rcSave" style="margin-top:10px">保存する</button>'
+    +   '<div class="msg" id="rcMsg"></div>'
+    + '</div></section>'
+    + '<section><h2>メンバーの状況</h2><div id="coachList"><p class="note">読み込み中…</p></div></section>';
+
+  $('rcSave').onclick = async function(){
+    var data = {race_name: $('rcName').value.trim(), race_date: $('rcDate').value || null, target_distance_km: parseFloat($('rcDist').value) || null};
+    try{
+      await Backend.setRaceConfig(data);
+      state.raceConfig = Object.assign({}, rc, data);
+      showMsg('rcMsg','ok','保存しました。');
+    }catch(e){
+      showMsg('rcMsg','err','保存に失敗しました：'+e.message);
+    }
+  };
+
+  var overview = await Backend.coachOverview().catch(function(){ return []; });
+  var listEl = $('coachList');
+  if(!overview.length){
+    listEl.innerHTML = '<div class="card empty">まだメンバーが登録されていません。</div>';
+    return;
+  }
+  listEl.innerHTML = overview.map(function(m){
+    var lastLabel = m.lastDate
+      ? (function(){
+          var d = Math.floor((new Date(todayStr()) - new Date(m.lastDate))/86400000);
+          return esc(m.lastDate.slice(5).replace('-','/')) + (d===0 ? '（今日）' : '（'+d+'日前）');
+        })()
+      : '記録なし';
+    return '<div class="memberCard">'
+      + '<div class="mchead"><div class="mcname">'+esc(m.name)+'</div><div class="mclast">最終記録: '+lastLabel+'</div></div>'
+      + '<div class="mcstats">'
+      +   '<div><span>直近7日</span><b>'+m.last7km.toFixed(1)+' km</b></div>'
+      +   '<div><span>直近30日</span><b>'+m.last30km.toFixed(1)+' km</b></div>'
+      +   (m.lastRpe ? '<div><span>直近RPE</span><b>'+m.lastRpe+'</b></div>' : '')
+      + '</div>'
+      + (m.lastMemo ? '<div class="mcnote">💬 '+esc(m.lastMemo)+'</div>' : '')
+      + '</div>';
+  }).join('');
+}
+
+/* ---------------- ルート描画 ---------------- */
+function render(){
+  if(!state.user) renderAuth();
+  else renderMain();
+}
+
+boot();
+})();
+</script>
+</body>
+</html>
