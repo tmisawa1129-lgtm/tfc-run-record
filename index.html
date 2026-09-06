@@ -90,6 +90,13 @@
   th{color:var(--dim);font-size:11px;font-weight:700;letter-spacing:.08em}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
 
+  /* ---------- monthly tabs ---------- */
+  .monthTabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px}
+  .monthTab{background:var(--card2);color:var(--muted);border:1px solid var(--line2);padding:6px 14px;border-radius:100px;font-size:12.5px;font-weight:700;white-space:nowrap;flex-shrink:0}
+  .monthTab.active{background:var(--accent);color:#180d08;border-color:var(--accent)}
+  .monthSummary{font-size:13px;color:var(--muted);margin-bottom:14px}
+  .monthSummary b{color:var(--text);font-variant-numeric:tabular-nums}
+
   /* ---------- forms ---------- */
   label{display:block;font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.06em;margin-bottom:5px}
   input,select,textarea{
@@ -112,8 +119,6 @@
   button.ghost:hover{background:var(--card2);color:var(--text)}
   button.tiny{padding:3px 9px;font-size:11px}
   button:disabled{opacity:.5;cursor:not-allowed}
-  .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin:12px 0}
-  .checkrow input{width:auto}
 
   .msg{padding:11px 14px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
   .msg.show{display:block}
@@ -127,10 +132,6 @@
   .authwrap{max-width:400px;margin:0 auto;padding:48px 20px}
   .authwrap .eyebrow{text-align:center}
   .authwrap h1{text-align:center;margin-bottom:28px}
-  .switchrow{display:flex;gap:8px;margin-bottom:18px}
-  .switchrow button{flex:1;background:var(--card2);color:var(--muted);border:1px solid var(--line2)}
-  .switchrow button.active{background:var(--accent);color:#180d08;border-color:var(--accent)}
-  .authnote{font-size:11.5px;color:var(--dim);margin-top:10px}
 
   /* ---------- coach view ---------- */
   .memberCard{padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:12px}
@@ -206,25 +207,10 @@ var LocalBackend = (function(){
       var s = load();
       return s.members.map(function(m){ return {id:m.id, name:m.name, role:m.role}; });
     },
-    async findByName(name){
-      var s = load(); var n = name.trim().toLowerCase();
-      var m = s.members.find(function(x){ return x.name.trim().toLowerCase() === n; });
-      return m ? {id:m.id, name:m.name, role:m.role} : null;
-    },
     async getMember(id){
       var s = load();
       var m = s.members.find(function(x){ return x.id === id; });
       return m ? {id:m.id, name:m.name, role:m.role} : null;
-    },
-    async hasCoach(){
-      var s = load();
-      return s.members.some(function(x){ return x.role === 'coach'; });
-    },
-    async register(name, role){
-      var s = load();
-      var m = {id: uid(), name: name.trim(), role: role, created_at: new Date().toISOString()};
-      s.members.push(m); save(s);
-      return {id:m.id, name:m.name, role:m.role};
     },
     async addRecord(memberId, data){
       var s = load();
@@ -290,24 +276,9 @@ var SupabaseBackend = (function(){
       if(r.error) throw r.error;
       return r.data;
     },
-    async findByName(name){
-      var r = await client().from('members').select('id,name,role').ilike('name', name.trim()).limit(1);
-      if(r.error) throw r.error;
-      return r.data && r.data[0] ? r.data[0] : null;
-    },
     async getMember(id){
       var r = await client().from('members').select('id,name,role').eq('id', id).single();
       if(r.error) return null;
-      return r.data;
-    },
-    async hasCoach(){
-      var r = await client().from('members').select('id').eq('role','coach').limit(1);
-      if(r.error) throw r.error;
-      return r.data.length > 0;
-    },
-    async register(name, role){
-      var r = await client().from('members').insert({name: name.trim(), role: role}).select('id,name,role').single();
-      if(r.error) throw r.error;
       return r.data;
     },
     async addRecord(memberId, data){
@@ -375,7 +346,6 @@ var app = $('app');
 var state = {
   user: null,        // {id, name, role}
   tab: 'input',       // 'input' | 'list' | 'coach'
-  authMode: 'login',  // 'login' | 'register'
   raceConfig: null,
   membersCache: [],
   editingRecord: null // 編集中の記録（nullなら新規入力）
@@ -420,32 +390,19 @@ async function boot(){
 }
 
 /* ---------------- 認証画面 ---------------- */
-function renderAuth(){
+async function renderAuth(){
   app.innerHTML =
     '<div class="authwrap">'
     + '<div class="eyebrow">THE FULL CREW</div>'
     + '<h1>記録ツール</h1>'
-    + '<div class="switchrow">'
-    +   '<button id="modeLogin" class="'+(state.authMode==='login'?'active':'')+'">ログイン</button>'
-    +   '<button id="modeRegister" class="'+(state.authMode==='register'?'active':'')+'">はじめての方</button>'
-    + '</div>'
-    + '<div class="card" id="authCard"></div>'
+    + '<div class="card" id="authCard"><p class="note">読み込み中…</p></div>'
     + '</div>';
 
-  $('modeLogin').onclick = function(){ state.authMode='login'; render(); };
-  $('modeRegister').onclick = function(){ state.authMode='register'; render(); };
-
-  if(state.authMode === 'login') renderLoginCard();
-  else renderRegisterCard();
-}
-
-async function renderLoginCard(){
   var card = $('authCard');
-  card.innerHTML = '<p class="note">読み込み中…</p>';
   var members = await Backend.listMembers().catch(function(){ return []; });
 
   if(!members.length){
-    card.innerHTML = '<p class="note">まだ誰も登録されていません。「はじめての方」から最初のメンバー登録をしてください。</p>';
+    card.innerHTML = '<p class="note">メンバーが登録されていません。管理者に連絡してください。</p>';
     return;
   }
 
@@ -455,8 +412,7 @@ async function renderLoginCard(){
 
   card.innerHTML =
       '<div class="field"><label>名前</label><select id="loginName">'+opts+'</select></div>'
-    + '<button id="loginBtn" style="width:100%">この名前で入る</button>'
-    + '<div class="msg" id="loginMsg"></div>';
+    + '<button id="loginBtn" style="width:100%">この名前で入る</button>';
 
   $('loginBtn').onclick = function(){
     var id = $('loginName').value;
@@ -466,44 +422,6 @@ async function renderLoginCard(){
     saveIdentity(state.user);
     state.tab = defaultTabFor(m.role);
     render();
-  };
-}
-
-async function renderRegisterCard(){
-  var card = $('authCard');
-  card.innerHTML = '<p class="note">読み込み中…</p>';
-  var coachExists = await Backend.hasCoach().catch(function(){ return true; });
-
-  card.innerHTML =
-      '<div class="field"><label>名前</label><input id="regName" type="text" placeholder="山田太郎"></div>'
-    + (coachExists ? ''
-        : '<div class="checkrow"><input type="checkbox" id="regCoach"><label style="margin:0" for="regCoach">自分は先生（指導者）です</label></div>')
-    + '<button id="regBtn" style="width:100%">登録する</button>'
-    + '<div class="msg" id="regMsg"></div>'
-    + '<p class="authnote">名前は端末に記憶されるので、次回から選び直す必要はありません。他のメンバーと同じ名前は使えません。</p>';
-
-  $('regBtn').onclick = async function(){
-    var name = $('regName').value.trim();
-    var isCoach = !coachExists && $('regCoach') && $('regCoach').checked;
-    if(!name){ showMsg('regMsg','err','名前を入力してください。'); return; }
-
-    $('regBtn').disabled = true;
-    try{
-      var exists = await Backend.findByName(name);
-      if(exists){
-        showMsg('regMsg','err','その名前は既に登録されています。ログイン画面から選んでください。');
-        $('regBtn').disabled = false;
-        return;
-      }
-      var m = await Backend.register(name, isCoach ? 'coach' : 'member');
-      state.user = m;
-      saveIdentity(m);
-      state.tab = defaultTabFor(m.role);
-      render();
-    }catch(e){
-      showMsg('regMsg','err','エラーが発生しました：'+e.message);
-      $('regBtn').disabled = false;
-    }
   };
 }
 
@@ -691,6 +609,60 @@ function recordsTableHtml(records, withActions){
     + '</table>';
 }
 
+function monthLabel(key){
+  var parts = key.split('-');
+  return parts[0] + '年' + parseInt(parts[1], 10) + '月';
+}
+
+function renderMonthlyRecords(containerEl, records, withActions, onChange){
+  var byMonth = {};
+  records.forEach(function(r){
+    var k = r.date.slice(0, 7);
+    (byMonth[k] = byMonth[k] || []).push(r);
+  });
+  var months = Object.keys(byMonth).sort().reverse();
+  if(!months.length){
+    containerEl.innerHTML = '<div class="empty">まだ記録がありません。</div>';
+    return;
+  }
+  var current = months[0];
+
+  function draw(){
+    var recs = byMonth[current].slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+    var total = recs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0);
+    containerEl.innerHTML =
+      '<div class="monthTabs">' + months.map(function(k){
+        return '<button type="button" class="monthTab'+(k===current?' active':'')+'" data-month="'+k+'">'+monthLabel(k)+'</button>';
+      }).join('') + '</div>'
+      + '<div class="monthSummary">'+monthLabel(current)+'の合計：<b>'+total.toFixed(1)+' km</b>（'+recs.length+'件）</div>'
+      + recordsTableHtml(recs, withActions);
+
+    containerEl.querySelectorAll('.monthTab').forEach(function(btn){
+      btn.onclick = function(){ current = btn.dataset.month; draw(); };
+    });
+
+    if(withActions){
+      containerEl.querySelectorAll('[data-del]').forEach(function(btn){
+        btn.onclick = async function(){
+          if(!confirm('この記録を削除しますか？')) return;
+          await Backend.deleteRecord(btn.dataset.del);
+          if(onChange) onChange();
+        };
+      });
+      containerEl.querySelectorAll('[data-edit]').forEach(function(btn){
+        btn.onclick = function(){
+          var rec = records.find(function(r){ return r.id === btn.dataset.edit; });
+          if(!rec) return;
+          state.editingRecord = rec;
+          state.tab = 'input';
+          render();
+        };
+      });
+    }
+  }
+  draw();
+}
+
 async function renderListTab(){
   var el = $('tabContent');
   el.innerHTML = '<section><h2>自分の記録一覧</h2><div class="card"><p class="note">読み込み中…</p></div></section>';
@@ -699,7 +671,6 @@ async function renderListTab(){
   var last7 = daysAgoStr(7), last30 = daysAgoStr(30);
   var sum7 = records.filter(function(r){ return r.date >= last7; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
   var sum30 = records.filter(function(r){ return r.date >= last30; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
-  var rows = recordsTableHtml(records, true);
 
   el.innerHTML =
     '<section><h2>自分の記録一覧</h2>'
@@ -707,25 +678,10 @@ async function renderListTab(){
     +   '<div><label>直近7日</label><div style="font-size:22px;font-weight:800">'+sum7.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
     +   '<div><label>直近30日</label><div style="font-size:22px;font-weight:800">'+sum30.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
     + '</div></div>'
-    + '<div class="card">'+rows+'</div>'
+    + '<div class="card" id="myRecordsBlock"></div>'
     + '</section>';
 
-  document.querySelectorAll('[data-del]').forEach(function(btn){
-    btn.onclick = async function(){
-      if(!confirm('この記録を削除しますか？')) return;
-      await Backend.deleteRecord(btn.dataset.del);
-      renderListTab();
-    };
-  });
-  document.querySelectorAll('[data-edit]').forEach(function(btn){
-    btn.onclick = function(){
-      var rec = records.find(function(r){ return r.id === btn.dataset.edit; });
-      if(!rec) return;
-      state.editingRecord = rec;
-      state.tab = 'input';
-      render();
-    };
-  });
+  renderMonthlyRecords($('myRecordsBlock'), records, true, renderListTab);
 }
 
 async function renderCoachTab(){
@@ -794,7 +750,7 @@ async function renderOverviewTab(){
         btn.textContent = '閉じる';
         box.innerHTML = '<p class="note">読み込み中…</p>';
         var recs = await Backend.listMyRecords(btn.dataset.detail).catch(function(){ return []; });
-        box.innerHTML = recordsTableHtml(recs, false);
+        renderMonthlyRecords(box, recs, false);
       } else {
         box.style.display = 'none';
         btn.textContent = '記録を見る';
