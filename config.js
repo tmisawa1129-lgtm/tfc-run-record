@@ -6,5 +6,5 @@
 //
 // 入れ方は 20260906_セットアップ手順.md を参照してください。
 
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://jbqrgsctbxuhclupzxqo.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ZeWiEErJromXkmt0WQgZbw_UYcayrB0";
