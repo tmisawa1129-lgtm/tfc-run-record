@@ -256,7 +256,7 @@ var LocalBackend = (function(){
       s.raceConfig = Object.assign({}, s.raceConfig, data);
       save(s);
     },
-    async coachOverview(){
+    async teamOverview(){
       var s = load();
       var since30 = daysAgoStr(30), since7 = daysAgoStr(7);
       return s.members.filter(function(m){ return m.role === 'member'; }).map(function(m){
@@ -338,7 +338,7 @@ var SupabaseBackend = (function(){
       var r = await client().from('race_config').update(Object.assign({}, data, {updated_at: new Date().toISOString()})).eq('id',1);
       if(r.error) throw r.error;
     },
-    async coachOverview(){
+    async teamOverview(){
       var since30 = daysAgoStr(30), since7 = daysAgoStr(7);
       var mr = await client().from('members').select('id,name').eq('role','member').order('name');
       if(mr.error) throw mr.error;
@@ -760,7 +760,7 @@ async function renderOverviewTab(){
   var el = $('tabContent');
   el.innerHTML = '<section><h2>みんなの状況</h2><div id="overviewList"><p class="note">読み込み中…</p></div></section>';
 
-  var overview = await Backend.coachOverview().catch(function(){ return []; });
+  var overview = await Backend.teamOverview().catch(function(){ return []; });
   var listEl = $('overviewList');
   if(!overview.length){
     listEl.innerHTML = '<div class="card empty">まだメンバーが登録されていません。</div>';
