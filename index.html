@@ -129,11 +129,6 @@
   .empty{text-align:center;color:var(--dim);padding:26px;font-size:13px}
   footer{text-align:center;color:var(--dim);font-size:11.5px;margin-top:44px;padding-top:22px;border-top:1px solid var(--line)}
 
-  /* ---------- auth screen ---------- */
-  .authwrap{max-width:400px;margin:0 auto;padding:48px 20px}
-  .authwrap .eyebrow{text-align:center}
-  .authwrap h1{text-align:center;margin-bottom:28px}
-
   /* ---------- coach view ---------- */
   .memberCard{padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:12px}
   .memberCard .mchead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:10px;flex-wrap:wrap}
@@ -341,7 +336,6 @@ var app = $('app');
 var state = {
   user: null,        // {id, name, role}
   tab: 'input',       // 'input' | 'list' | 'coach' | 'overview'
-  view: null,         // 'teamOnly' = ログインせずにみんなの状況だけ見ている状態
   raceConfig: null,
   membersCache: [],
   editingRecord: null // 編集中の記録（nullなら新規入力）
@@ -385,64 +379,40 @@ async function boot(){
   render();
 }
 
-/* ---------------- ホーム画面（未ログイン） ---------------- */
+/* ---------------- 未ログイン時の画面（みんなの状況＋インライン ログイン） ---------------- */
 async function renderAuth(){
-  app.innerHTML =
-    '<div class="authwrap">'
-    + '<div class="eyebrow">THE FULL CREW</div>'
-    + '<h1>記録ツール</h1>'
-    + '<div class="card" id="authCard"><p class="note">読み込み中…</p></div>'
-    + '<button type="button" class="ghost" id="viewTeamBtn" style="width:100%;margin-top:12px">ログインせずに、みんなの状況だけ見る</button>'
-    + '</div>';
-
-  $('viewTeamBtn').onclick = function(){
-    state.view = 'teamOnly';
-    render();
-  };
-
-  var card = $('authCard');
   var members = await Backend.listMembers().catch(function(){ return []; });
-
-  if(!members.length){
-    card.innerHTML = '<p class="note">メンバーが登録されていません。管理者に連絡してください。</p>';
-    return;
-  }
-
   var opts = members.map(function(m){
     return '<option value="'+esc(m.id)+'">'+esc(m.name)+(m.role==='coach'?'（先生）':'')+'</option>';
   }).join('');
 
-  card.innerHTML =
-      '<div class="field"><label>名前</label><select id="loginName">'+opts+'</select></div>'
-    + '<button id="loginBtn" style="width:100%">この名前で入る</button>';
-
-  $('loginBtn').onclick = function(){
-    var id = $('loginName').value;
-    var m = members.find(function(x){ return x.id === id; });
-    if(!m) return;
-    state.user = {id:m.id, name:m.name, role:m.role};
-    saveIdentity(state.user);
-    state.tab = defaultTabFor(m.role);
-    render();
-  };
-}
-
-async function renderTeamOnlyView(){
   app.innerHTML =
     '<header><div class="wrap">'
     +   '<div class="eyebrow">THE FULL CREW — 記録ツール</div>'
     +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
     +   '<div class="userbar">'
-    +     '<div>ログインせずに閲覧中</div>'
-    +     '<button id="backHomeBtn">名前を選んでログイン</button>'
+    +     (members.length
+          ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+            + '<span>あなたは？</span>'
+            + '<select id="loginName" style="width:auto">'+opts+'</select>'
+            + '<button id="loginBtn" style="padding:8px 14px">この名前で入る</button>'
+            + '</div>'
+          : '<div>メンバーが登録されていません。管理者に連絡してください。</div>')
     +   '</div>'
     + '</div></header>'
     + '<div class="wrap"><div id="tabContent"></div></div>';
 
-  $('backHomeBtn').onclick = function(){
-    state.view = null;
-    render();
-  };
+  if(members.length){
+    $('loginBtn').onclick = function(){
+      var id = $('loginName').value;
+      var m = members.find(function(x){ return x.id === id; });
+      if(!m) return;
+      state.user = {id:m.id, name:m.name, role:m.role};
+      saveIdentity(state.user);
+      state.tab = defaultTabFor(m.role);
+      render();
+    };
+  }
 
   await renderOverviewTab();
 }
@@ -802,8 +772,7 @@ async function renderOverviewTab(){
 
 /* ---------------- ルート描画 ---------------- */
 function render(){
-  if(!state.user && state.view === 'teamOnly') renderTeamOnlyView();
-  else if(!state.user) renderAuth();
+  if(!state.user) renderAuth();
   else renderMain();
 }
 
