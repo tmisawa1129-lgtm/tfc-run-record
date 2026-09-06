@@ -234,6 +234,11 @@ var LocalBackend = (function(){
       s.records = s.records.filter(function(r){ return r.id !== id; });
       save(s);
     },
+    async updateRecord(id, data){
+      var s = load();
+      var idx = s.records.findIndex(function(r){ return r.id === id; });
+      if(idx >= 0){ s.records[idx] = Object.assign({}, s.records[idx], data); save(s); }
+    },
     async getRaceConfig(){
       var s = load();
       return s.raceConfig;
@@ -317,6 +322,10 @@ var SupabaseBackend = (function(){
       var r = await client().from('records').delete().eq('id', id);
       if(r.error) throw r.error;
     },
+    async updateRecord(id, data){
+      var r = await client().from('records').update(data).eq('id', id);
+      if(r.error) throw r.error;
+    },
     async getRaceConfig(){
       var r = await client().from('race_config').select('*').eq('id',1).single();
       if(r.error) throw r.error;
@@ -365,7 +374,8 @@ var state = {
   tab: 'input',       // 'input' | 'list' | 'coach'
   authMode: 'login',  // 'login' | 'register'
   raceConfig: null,
-  membersCache: []
+  membersCache: [],
+  editingRecord: null // 編集中の記録（nullなら新規入力）
 };
 
 function loadIdentity(){
@@ -548,7 +558,7 @@ async function renderMain(){
 
   document.querySelectorAll('.tab').forEach(function(btn){
     if(btn.dataset.tab === state.tab) btn.classList.add('active');
-    btn.onclick = function(){ state.tab = btn.dataset.tab; render(); };
+    btn.onclick = function(){ state.tab = btn.dataset.tab; state.editingRecord = null; render(); };
   });
   $('logoutBtn').onclick = function(){
     clearIdentity();
@@ -561,29 +571,49 @@ async function renderMain(){
   else if(state.tab === 'coach') renderCoachTab();
 }
 
-function renderInputTab(){
+async function renderInputTab(){
   var el = $('tabContent');
+  var editing = state.editingRecord;
+  var lastCadence = '', lastGct = '';
+  if(!editing){
+    var recent = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
+    if(recent.length){
+      lastCadence = recent[0].cadence != null ? recent[0].cadence : '';
+      lastGct = recent[0].ground_contact_ms != null ? recent[0].ground_contact_ms : '';
+    }
+  }
+
   el.innerHTML =
-    '<section><h2>今日の記録</h2>'
+    '<section><h2>'+(editing ? '記録を編集' : '今日の記録')+'</h2>'
     + '<div class="card">'
     +   '<div class="grid g4">'
-    +     '<div><label>日付</label><input type="date" id="fDate" value="'+todayStr()+'"></div>'
-    +     '<div><label>距離 (km)</label><input type="number" id="fDist" step="0.01" placeholder="10.00"></div>'
-    +     '<div><label>時間</label><input type="text" id="fDuration" placeholder="52:30"></div>'
-    +     '<div><label>ペース (分:秒/km)</label><input type="text" id="fPace" placeholder="5:15"></div>'
+    +     '<div><label>日付</label><input type="date" id="fDate" value="'+esc(editing ? editing.date : todayStr())+'"></div>'
+    +     '<div><label>距離 (km)</label><input type="number" inputmode="decimal" id="fDist" step="0.01" placeholder="10.00" value="'+(editing ? editing.distance_km : '')+'"></div>'
+    +     '<div><label>時間</label><input type="text" id="fDuration" placeholder="52:30" value="'+esc(editing ? editing.duration_text : '')+'"></div>'
+    +     '<div><label>ペース (分:秒/km)</label><input type="text" id="fPace" placeholder="5:15" value="'+esc(editing ? editing.pace_text : '')+'"></div>'
     +   '</div>'
     +   '<div class="grid g4" style="margin-top:12px">'
-    +     '<div><label>平均心拍 (bpm)</label><input type="number" id="fHr" placeholder="145"></div>'
-    +     '<div><label>ピッチ (spm・任意)</label><input type="number" id="fCadence" placeholder="172"></div>'
-    +     '<div><label>接地時間 (ms・任意)</label><input type="number" id="fGct" placeholder="245"></div>'
+    +     '<div><label>平均心拍 (bpm)</label><input type="number" inputmode="numeric" id="fHr" placeholder="145" value="'+(editing ? editing.heart_rate : '')+'"></div>'
+    +     '<div><label>ピッチ (spm・任意)</label><input type="number" inputmode="numeric" id="fCadence" placeholder="172" value="'+(editing ? (editing.cadence!=null?editing.cadence:'') : lastCadence)+'"></div>'
+    +     '<div><label>接地時間 (ms・任意)</label><input type="number" inputmode="numeric" id="fGct" placeholder="245" value="'+(editing ? (editing.ground_contact_ms!=null?editing.ground_contact_ms:'') : lastGct)+'"></div>'
     +     '<div><label>体感・RPE (任意)</label><select id="fRpe"><option value="">—</option>'
-    +       Array.from({length:10},function(_,i){ return i+1; }).map(function(n){ return '<option value="'+n+'">'+n+(n===1?' - とても楽':n===10?' - 全力':'')+'</option>'; }).join('')
+    +       Array.from({length:10},function(_,i){ return i+1; }).map(function(n){ return '<option value="'+n+'"'+(editing && Number(editing.rpe)===n ? ' selected' : '')+'>'+n+(n===1?' - とても楽':n===10?' - 全力':'')+'</option>'; }).join('')
     +     '</select></div>'
     +   '</div>'
-    +   '<div class="field" style="margin-top:12px"><label>メモ (任意)</label><textarea id="fMemo" placeholder="天候、体調、気づいたことなど"></textarea></div>'
-    +   '<button id="submitBtn" style="margin-top:6px">記録を追加</button>'
+    +   '<div class="field" style="margin-top:12px"><label>メモ (任意)</label><textarea id="fMemo" placeholder="天候、体調、気づいたことなど">'+esc(editing ? editing.memo : '')+'</textarea></div>'
+    +   '<div style="display:flex;gap:10px;margin-top:6px">'
+    +     '<button id="submitBtn">'+(editing ? '更新する' : '記録を追加')+'</button>'
+    +     (editing ? '<button type="button" class="ghost" id="cancelEditBtn">キャンセル</button>' : '')
+    +   '</div>'
     +   '<div class="msg" id="inputMsg"></div>'
     + '</div></section>';
+
+  if(editing){
+    $('cancelEditBtn').onclick = function(){
+      state.editingRecord = null;
+      renderInputTab();
+    };
+  }
 
   $('submitBtn').onclick = async function(){
     var dist = parseFloat($('fDist').value);
@@ -607,14 +637,21 @@ function renderInputTab(){
     };
     $('submitBtn').disabled = true;
     try{
+      if(editing){
+        await Backend.updateRecord(editing.id, data);
+        state.editingRecord = null;
+        state.tab = 'list';
+        render();
+        return;
+      }
       await Backend.addRecord(state.user.id, data);
       showMsg('inputMsg','ok','記録を保存しました。');
-      ['fDist','fDuration','fPace','fHr','fCadence','fGct','fRpe','fMemo'].forEach(function(id){ $(id).value=''; });
+      ['fDist','fDuration','fPace','fHr','fRpe','fMemo'].forEach(function(id){ $(id).value=''; });
       $('fDate').value = todayStr();
     }catch(e){
       showMsg('inputMsg','err','保存に失敗しました：'+e.message);
     }
-    $('submitBtn').disabled = false;
+    if($('submitBtn')) $('submitBtn').disabled = false;
   };
 }
 
@@ -638,7 +675,7 @@ async function renderListTab(){
             + '<td class="num" style="color:var(--muted)">'+esc(r.pace_text)+'</td>'
             + '<td class="num" style="color:var(--muted)">'+esc(r.heart_rate)+'</td>'
             + '<td class="num" style="color:var(--muted)">'+(r.rpe||'—')+'</td>'
-            + '<td style="text-align:right"><button class="ghost tiny" data-del="'+esc(r.id)+'">削除</button></td>'
+            + '<td style="text-align:right;white-space:nowrap"><button class="ghost tiny" data-edit="'+esc(r.id)+'">編集</button> <button class="ghost tiny" data-del="'+esc(r.id)+'">削除</button></td>'
             + '</tr>';
         }).join('')
       + '</table>';
@@ -657,6 +694,15 @@ async function renderListTab(){
       if(!confirm('この記録を削除しますか？')) return;
       await Backend.deleteRecord(btn.dataset.del);
       renderListTab();
+    };
+  });
+  document.querySelectorAll('[data-edit]').forEach(function(btn){
+    btn.onclick = function(){
+      var rec = records.find(function(r){ return r.id === btn.dataset.edit; });
+      if(!rec) return;
+      state.editingRecord = rec;
+      state.tab = 'input';
+      render();
     };
   });
 }
