@@ -403,12 +403,15 @@ if(DEMO_MODE){
 }
 
 /* ---------------- 起動 ---------------- */
+function defaultTabFor(role){ return role === 'coach' ? 'overview' : 'input'; }
+
 async function boot(){
   var identity = loadIdentity();
   if(identity){
     var m = await Backend.getMember(identity.id).catch(function(){ return null; });
     if(m){
       state.user = m;
+      state.tab = defaultTabFor(m.role);
     } else {
       clearIdentity();
     }
@@ -461,7 +464,7 @@ async function renderLoginCard(){
     if(!m) return;
     state.user = {id:m.id, name:m.name, role:m.role};
     saveIdentity(state.user);
-    state.tab = 'input';
+    state.tab = defaultTabFor(m.role);
     render();
   };
 }
@@ -495,7 +498,7 @@ async function renderRegisterCard(){
       var m = await Backend.register(name, isCoach ? 'coach' : 'member');
       state.user = m;
       saveIdentity(m);
-      state.tab = 'input';
+      state.tab = defaultTabFor(m.role);
       render();
     }catch(e){
       showMsg('regMsg','err','エラーが発生しました：'+e.message);
@@ -535,8 +538,9 @@ async function renderMain(){
     + '</div></header>'
     + '<div class="wrap">'
     +   '<div class="tabbar">'
-    +     '<button class="tab" data-tab="input">記録を入力</button>'
-    +     '<button class="tab" data-tab="list">記録一覧</button>'
+    +     (state.user.role==='coach' ? ''
+        : '<button class="tab" data-tab="input">記録を入力</button>'
+        + '<button class="tab" data-tab="list">記録一覧</button>')
     +     '<button class="tab" data-tab="overview">みんなの状況</button>'
     +     (state.user.role==='coach' ? '<button class="tab" data-tab="coach">先生ビュー</button>' : '')
     +   '</div>'
@@ -670,6 +674,23 @@ async function renderInputTab(){
   };
 }
 
+function recordsTableHtml(records, withActions){
+  if(!records.length) return '<div class="empty">まだ記録がありません。</div>';
+  return '<table><tr><th>日付</th><th>距離</th><th>時間</th><th>ペース</th><th>心拍</th><th>RPE</th>'+(withActions?'<th></th>':'')+'</tr>'
+    + records.map(function(r){
+        return '<tr>'
+          + '<td>'+esc(r.date.slice(5).replace('-','/'))+'</td>'
+          + '<td class="num">'+Number(r.distance_km).toFixed(2)+'</td>'
+          + '<td class="num" style="color:var(--muted)">'+esc(r.duration_text)+'</td>'
+          + '<td class="num" style="color:var(--muted)">'+esc(r.pace_text)+'</td>'
+          + '<td class="num" style="color:var(--muted)">'+esc(r.heart_rate)+'</td>'
+          + '<td class="num" style="color:var(--muted)">'+(r.rpe||'—')+'</td>'
+          + (withActions ? '<td style="text-align:right;white-space:nowrap"><button class="ghost tiny" data-edit="'+esc(r.id)+'">編集</button> <button class="ghost tiny" data-del="'+esc(r.id)+'">削除</button></td>' : '')
+          + '</tr>';
+      }).join('')
+    + '</table>';
+}
+
 async function renderListTab(){
   var el = $('tabContent');
   el.innerHTML = '<section><h2>自分の記録一覧</h2><div class="card"><p class="note">読み込み中…</p></div></section>';
@@ -678,22 +699,7 @@ async function renderListTab(){
   var last7 = daysAgoStr(7), last30 = daysAgoStr(30);
   var sum7 = records.filter(function(r){ return r.date >= last7; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
   var sum30 = records.filter(function(r){ return r.date >= last30; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
-
-  var rows = !records.length
-    ? '<div class="empty">まだ記録がありません。「記録を入力」タブから追加してください。</div>'
-    : '<table><tr><th>日付</th><th>距離</th><th>時間</th><th>ペース</th><th>心拍</th><th>RPE</th><th></th></tr>'
-      + records.map(function(r){
-          return '<tr>'
-            + '<td>'+esc(r.date.slice(5).replace('-','/'))+'</td>'
-            + '<td class="num">'+Number(r.distance_km).toFixed(2)+'</td>'
-            + '<td class="num" style="color:var(--muted)">'+esc(r.duration_text)+'</td>'
-            + '<td class="num" style="color:var(--muted)">'+esc(r.pace_text)+'</td>'
-            + '<td class="num" style="color:var(--muted)">'+esc(r.heart_rate)+'</td>'
-            + '<td class="num" style="color:var(--muted)">'+(r.rpe||'—')+'</td>'
-            + '<td style="text-align:right;white-space:nowrap"><button class="ghost tiny" data-edit="'+esc(r.id)+'">編集</button> <button class="ghost tiny" data-del="'+esc(r.id)+'">削除</button></td>'
-            + '</tr>';
-        }).join('')
-      + '</table>';
+  var rows = recordsTableHtml(records, true);
 
   el.innerHTML =
     '<section><h2>自分の記録一覧</h2>'
@@ -775,8 +781,26 @@ async function renderOverviewTab(){
       +   (m.lastRpe ? '<div><span>直近RPE</span><b>'+m.lastRpe+'</b></div>' : '')
       + '</div>'
       + (m.lastMemo ? '<div class="mcnote">💬 '+esc(m.lastMemo)+'</div>' : '')
+      + '<button type="button" class="ghost tiny" style="margin-top:10px" data-detail="'+esc(m.id)+'">記録を見る</button>'
+      + '<div class="detailBox" id="detail-'+esc(m.id)+'" style="display:none;margin-top:10px"></div>'
       + '</div>';
   }).join('');
+
+  document.querySelectorAll('[data-detail]').forEach(function(btn){
+    btn.onclick = async function(){
+      var box = $('detail-'+btn.dataset.detail);
+      if(box.style.display === 'none'){
+        box.style.display = 'block';
+        btn.textContent = '閉じる';
+        box.innerHTML = '<p class="note">読み込み中…</p>';
+        var recs = await Backend.listMyRecords(btn.dataset.detail).catch(function(){ return []; });
+        box.innerHTML = recordsTableHtml(recs, false);
+      } else {
+        box.style.display = 'none';
+        btn.textContent = '記録を見る';
+      }
+    };
+  });
 }
 
 /* ---------------- ルート描画 ---------------- */
