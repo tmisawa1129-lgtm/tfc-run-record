@@ -335,10 +335,17 @@ var app = $('app');
 
 var state = {
   user: null,        // {id, name, role}
-  tab: 'input',       // 'input' | 'list' | 'coach' | 'overview'
+  tab: 'input',       // 'input' | 'list' | 'home'（メンバー用タブ）
+  homeTab: 'overview', // 'overview' | 'coach' | 'guide1' | 'guide2' | 'official'（ホーム内タブ）
   raceConfig: null,
   membersCache: [],
   editingRecord: null // 編集中の記録（nullなら新規入力）
+};
+
+var EXTERNAL_LINKS = {
+  guide1: { label: 'トレーニングガイド', url: 'https://marathontraining-guides.netlify.app/' },
+  guide2: { label: '参加者ガイド', url: 'https://tfc-participantguides.netlify.app/' },
+  official: { label: '勝田マラソン公式サイト', url: 'https://katsutamarathon.jp/' }
 };
 
 function loadIdentity(){
@@ -363,7 +370,7 @@ if(DEMO_MODE){
 }
 
 /* ---------------- 起動 ---------------- */
-function defaultTabFor(role){ return role === 'coach' ? 'overview' : 'input'; }
+function defaultTabFor(role){ return role === 'coach' ? 'home' : 'input'; }
 
 async function boot(){
   var identity = loadIdentity();
@@ -414,7 +421,44 @@ async function renderAuth(){
     };
   }
 
-  await renderOverviewTab();
+  await renderHomeTabs($('tabContent'), false);
+}
+
+/* ---------------- ホームタブ（みんなの状況・先生ページ・外部リンク） ---------------- */
+async function renderHomeTabs(containerEl, isCoach){
+  var tabs = [{key:'overview', label:'みんなの状況'}];
+  if(isCoach) tabs.push({key:'coach', label:'先生ページ'});
+  tabs.push({key:'guide1', label:EXTERNAL_LINKS.guide1.label});
+  tabs.push({key:'guide2', label:EXTERNAL_LINKS.guide2.label});
+  tabs.push({key:'official', label:EXTERNAL_LINKS.official.label});
+
+  if(state.homeTab === 'coach' && !isCoach) state.homeTab = 'overview';
+
+  containerEl.innerHTML =
+      '<div class="tabbar">'
+    +   tabs.map(function(t){ return '<button class="tab" data-hometab="'+t.key+'">'+esc(t.label)+'</button>'; }).join('')
+    + '</div>'
+    + '<div id="homeTabBody"></div>';
+
+  containerEl.querySelectorAll('[data-hometab]').forEach(function(btn){
+    if(btn.dataset.hometab === state.homeTab) btn.classList.add('active');
+    btn.onclick = function(){
+      state.homeTab = btn.dataset.hometab;
+      renderHomeTabs(containerEl, isCoach);
+    };
+  });
+
+  var body = $('homeTabBody');
+  if(state.homeTab === 'overview'){
+    await renderOverviewTab(body);
+  } else if(state.homeTab === 'coach'){
+    await renderCoachTab(body);
+  } else {
+    var link = EXTERNAL_LINKS[state.homeTab];
+    body.innerHTML = '<div class="card" style="padding:0;overflow:hidden">'
+      + '<iframe src="'+esc(link.url)+'" style="width:100%;height:75vh;min-height:480px;border:0;display:block"></iframe>'
+      + '</div>';
+  }
 }
 
 function showMsg(id, kind, text){
@@ -436,42 +480,49 @@ async function renderMain(){
   var countdownText = (days === null) ? ''
     : (days > 0 ? '🏅 '+esc(rc.race_name)+'まで あと '+days+' 日' : '🏅 '+esc(rc.race_name)+' 当日・お疲れさまでした！');
 
+  var isCoach = state.user.role === 'coach';
+
   app.innerHTML =
     '<header><div class="wrap">'
     +   '<div class="eyebrow">THE FULL CREW — 記録ツール</div>'
     +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
     +   (countdownText ? '<div class="countdown">'+countdownText+'</div>' : '')
     +   '<div class="userbar">'
-    +     '<div>ようこそ、<b>'+esc(state.user.name)+'</b>さん <span class="badge '+(state.user.role==='coach'?'coach':'member')+'">'+(state.user.role==='coach'?'先生':'メンバー')+'</span></div>'
+    +     '<div>ようこそ、<b>'+esc(state.user.name)+'</b>さん <span class="badge '+(isCoach?'coach':'member')+'">'+(isCoach?'先生':'メンバー')+'</span></div>'
     +     '<button id="logoutBtn">別の人に切り替える</button>'
     +   '</div>'
     + '</div></header>'
     + '<div class="wrap">'
-    +   '<div class="tabbar">'
-    +     (state.user.role==='coach' ? ''
-        : '<button class="tab" data-tab="input">記録を入力</button>'
-        + '<button class="tab" data-tab="list">記録一覧</button>')
-    +     '<button class="tab" data-tab="overview">みんなの状況</button>'
-    +     (state.user.role==='coach' ? '<button class="tab" data-tab="coach">先生ビュー</button>' : '')
-    +   '</div>'
+    +   (isCoach ? '' :
+        '<div class="tabbar">'
+        + '<button class="tab" data-tab="input">記録を入力</button>'
+        + '<button class="tab" data-tab="list">記録一覧</button>'
+        + '<button class="tab" data-tab="home">ホーム</button>'
+        + '</div>')
     +   '<div id="tabContent"></div>'
     + '</div>'
     + '<footer>THE FULL CREW / '+esc(rc.race_name||'')+'<br>各自の走行状況（距離・最終記録日など）はチーム内で共有されます</footer>';
 
-  document.querySelectorAll('.tab').forEach(function(btn){
-    if(btn.dataset.tab === state.tab) btn.classList.add('active');
-    btn.onclick = function(){ state.tab = btn.dataset.tab; state.editingRecord = null; render(); };
-  });
   $('logoutBtn').onclick = function(){
     clearIdentity();
     state.user = null;
     render();
   };
 
+  if(isCoach){
+    await renderHomeTabs($('tabContent'), true);
+    return;
+  }
+
+  document.querySelectorAll('.tab').forEach(function(btn){
+    if(btn.dataset.tab === state.tab) btn.classList.add('active');
+    btn.onclick = function(){ state.tab = btn.dataset.tab; state.editingRecord = null; render(); };
+  });
+
   if(state.tab === 'input') renderInputTab();
   else if(state.tab === 'list') renderListTab();
-  else if(state.tab === 'overview') renderOverviewTab();
-  else if(state.tab === 'coach') renderCoachTab();
+  else if(state.tab === 'home') await renderHomeTabs($('tabContent'), false);
+  else { state.tab = 'input'; renderInputTab(); }
 }
 
 async function renderInputTab(){
@@ -696,8 +747,8 @@ async function renderListTab(){
   renderMonthlyRecords($('myRecordsBlock'), records, true, renderListTab);
 }
 
-async function renderCoachTab(){
-  var el = $('tabContent');
+async function renderCoachTab(el){
+  el = el || $('tabContent');
   var rc = state.raceConfig;
   el.innerHTML =
     '<section><h2>目標大会（編集）</h2>'
@@ -724,8 +775,8 @@ async function renderCoachTab(){
   };
 }
 
-async function renderOverviewTab(){
-  var el = $('tabContent');
+async function renderOverviewTab(el){
+  el = el || $('tabContent');
   el.innerHTML = '<section><h2>みんなの状況</h2><div id="overviewList"><p class="note">読み込み中…</p></div></section>';
 
   var overview = await Backend.teamOverview().catch(function(){ return []; });
