@@ -169,10 +169,7 @@ function todayStr(){
   var d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-function daysAgoStr(n){
-  var d = new Date(Date.now() - n*86400000);
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
+function currentMonthKey(){ return todayStr().slice(0, 7); }
 function parseDurationToSec(s){
   var parts = String(s||'').trim().split(':').map(Number);
   if(!parts.length || parts.some(isNaN)) return null;
@@ -244,17 +241,15 @@ var LocalBackend = (function(){
     },
     async teamOverview(){
       var s = load();
-      var since30 = daysAgoStr(30), since7 = daysAgoStr(7);
+      var thisMonth = currentMonthKey();
       return s.members.filter(function(m){ return m.role === 'member'; }).map(function(m){
         var recs = s.records.filter(function(r){ return r.member_id === m.id; })
           .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
-        var last30 = recs.filter(function(r){ return r.date >= since30; });
-        var last7 = recs.filter(function(r){ return r.date >= since7; });
+        var monthRecs = recs.filter(function(r){ return r.date.slice(0,7) === thisMonth; });
         return {
           id: m.id, name: m.name,
           lastDate: recs.length ? recs[0].date : null,
-          last7km: last7.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
-          last30km: last30.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          thisMonthKm: monthRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
           lastMemo: recs.length ? recs[0].memo : '',
           lastRpe: recs.length ? recs[0].rpe : null
         };
@@ -310,10 +305,10 @@ var SupabaseBackend = (function(){
       if(r.error) throw r.error;
     },
     async teamOverview(){
-      var since30 = daysAgoStr(30), since7 = daysAgoStr(7);
+      var thisMonth = currentMonthKey();
       var mr = await client().from('members').select('id,name').eq('role','member').order('name');
       if(mr.error) throw mr.error;
-      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe').gte('date', since30).order('date', {ascending:false});
+      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe').order('date', {ascending:false});
       if(rr.error) throw rr.error;
       var byMember = {};
       rr.data.forEach(function(rec){
@@ -321,12 +316,11 @@ var SupabaseBackend = (function(){
       });
       return mr.data.map(function(m){
         var recs = byMember[m.id] || [];
-        var last7 = recs.filter(function(r){ return r.date >= since7; });
+        var monthRecs = recs.filter(function(r){ return r.date.slice(0,7) === thisMonth; });
         return {
           id: m.id, name: m.name,
           lastDate: recs.length ? recs[0].date : null,
-          last7km: last7.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
-          last30km: recs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          thisMonthKm: monthRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
           lastMemo: recs.length ? recs[0].memo : '',
           lastRpe: recs.length ? recs[0].rpe : null
         };
@@ -668,16 +662,12 @@ async function renderListTab(){
   el.innerHTML = '<section><h2>自分の記録一覧</h2><div class="card"><p class="note">読み込み中…</p></div></section>';
   var records = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
 
-  var last7 = daysAgoStr(7), last30 = daysAgoStr(30);
-  var sum7 = records.filter(function(r){ return r.date >= last7; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
-  var sum30 = records.filter(function(r){ return r.date >= last30; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
+  var thisMonth = currentMonthKey();
+  var sumMonth = records.filter(function(r){ return r.date.slice(0,7) === thisMonth; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
 
   el.innerHTML =
     '<section><h2>自分の記録一覧</h2>'
-    + '<div class="card"><div class="grid g2">'
-    +   '<div><label>直近7日</label><div style="font-size:22px;font-weight:800">'+sum7.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
-    +   '<div><label>直近30日</label><div style="font-size:22px;font-weight:800">'+sum30.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
-    + '</div></div>'
+    + '<div class="card"><label>今月</label><div style="font-size:22px;font-weight:800">'+sumMonth.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
     + '<div class="card" id="myRecordsBlock"></div>'
     + '</section>';
 
@@ -732,8 +722,7 @@ async function renderOverviewTab(){
     return '<div class="memberCard">'
       + '<div class="mchead"><div class="mcname">'+esc(m.name)+'</div><div class="mclast">最終記録: '+lastLabel+'</div></div>'
       + '<div class="mcstats">'
-      +   '<div><span>直近7日</span><b>'+m.last7km.toFixed(1)+' km</b></div>'
-      +   '<div><span>直近30日</span><b>'+m.last30km.toFixed(1)+' km</b></div>'
+      +   '<div><span>今月</span><b>'+m.thisMonthKm.toFixed(1)+' km</b></div>'
       +   (m.lastRpe ? '<div><span>直近RPE</span><b>'+m.lastRpe+'</b></div>' : '')
       + '</div>'
       + (m.lastMemo ? '<div class="mcnote">💬 '+esc(m.lastMemo)+'</div>' : '')
