@@ -10,10 +10,15 @@ THE FULL CREW のメンバーが、各自のランニング記録（距離・時
 
 ## 公開URL
 
-**https://tmisawa1129-lgtm.github.io/tfc-run-record/**
+**https://tfc-run-record.netlify.app/**
 
-ログイン不要。`index.html` を編集して push すれば、このURLのまま中身だけ更新される
-（今のランニング記録サイトと同じ仕組み）。
+ログイン不要。`index.html` を編集して push すれば、GitHub→Netlifyが自動でこのURLに
+反映する（今のランニング記録サイトと同じ「編集してpushするだけ」の感覚で使える）。
+
+ホスティング先はNetlify（個人名が入らないURLにするため）。GitHubリポジトリ自体は
+そのまま使っているので、pushの手順はこれまでと変わらない。
+旧URL（`tmisawa1129-lgtm.github.io/tfc-run-record/`）もまだ生きているが、
+今後はNetlifyの方を案内する。
 
 ---
 
