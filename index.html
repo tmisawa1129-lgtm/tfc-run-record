@@ -335,8 +335,8 @@ var app = $('app');
 
 var state = {
   user: null,        // {id, name, role}
-  tab: 'input',       // 'input' | 'list' | 'home'（メンバー用タブ）
-  homeTab: 'overview', // 'overview' | 'coach' | 'guide1' | 'guide2' | 'official'（ホーム内タブ）
+  tab: 'input',       // 'input' | 'list' | 'home'
+  homeTab: 'overview', // 'overview' | 'race' | 'guide1' | 'guide2' | 'official'（ホーム内タブ）
   raceConfig: null,
   membersCache: [],
   editingRecord: null // 編集中の記録（nullなら新規入力）
@@ -370,7 +370,7 @@ if(DEMO_MODE){
 }
 
 /* ---------------- 起動 ---------------- */
-function defaultTabFor(role){ return role === 'coach' ? 'home' : 'input'; }
+function defaultTabFor(){ return 'input'; }
 
 async function boot(){
   var identity = loadIdentity();
@@ -378,7 +378,7 @@ async function boot(){
     var m = await Backend.getMember(identity.id).catch(function(){ return null; });
     if(m){
       state.user = m;
-      state.tab = defaultTabFor(m.role);
+      state.tab = defaultTabFor();
     } else {
       clearIdentity();
     }
@@ -416,23 +416,23 @@ async function renderAuth(){
       if(!m) return;
       state.user = {id:m.id, name:m.name, role:m.role};
       saveIdentity(state.user);
-      state.tab = defaultTabFor(m.role);
+      state.tab = defaultTabFor();
       render();
     };
   }
 
-  await renderHomeTabs($('tabContent'), false);
+  await renderHomeTabs($('tabContent'));
 }
 
-/* ---------------- ホームタブ（みんなの状況・先生ページ・外部リンク） ---------------- */
-async function renderHomeTabs(containerEl, isCoach){
-  var tabs = [{key:'overview', label:'みんなの状況'}];
-  if(isCoach) tabs.push({key:'coach', label:'先生ページ'});
-  tabs.push({key:'guide1', label:EXTERNAL_LINKS.guide1.label});
-  tabs.push({key:'guide2', label:EXTERNAL_LINKS.guide2.label});
-  tabs.push({key:'official', label:EXTERNAL_LINKS.official.label});
-
-  if(state.homeTab === 'coach' && !isCoach) state.homeTab = 'overview';
+/* ---------------- ホームタブ（みんなの状況・大会設定・外部リンク） ---------------- */
+async function renderHomeTabs(containerEl){
+  var tabs = [
+    {key:'overview', label:'みんなの状況'},
+    {key:'race', label:'大会設定'},
+    {key:'guide1', label:EXTERNAL_LINKS.guide1.label},
+    {key:'guide2', label:EXTERNAL_LINKS.guide2.label},
+    {key:'official', label:EXTERNAL_LINKS.official.label}
+  ];
 
   containerEl.innerHTML =
       '<div class="tabbar">'
@@ -444,15 +444,15 @@ async function renderHomeTabs(containerEl, isCoach){
     if(btn.dataset.hometab === state.homeTab) btn.classList.add('active');
     btn.onclick = function(){
       state.homeTab = btn.dataset.hometab;
-      renderHomeTabs(containerEl, isCoach);
+      renderHomeTabs(containerEl);
     };
   });
 
   var body = $('homeTabBody');
   if(state.homeTab === 'overview'){
     await renderOverviewTab(body);
-  } else if(state.homeTab === 'coach'){
-    await renderCoachTab(body);
+  } else if(state.homeTab === 'race'){
+    await renderRaceConfigTab(body);
   } else {
     var link = EXTERNAL_LINKS[state.homeTab];
     body.innerHTML = '<div class="card" style="padding:0;overflow:hidden">'
@@ -493,12 +493,11 @@ async function renderMain(){
     +   '</div>'
     + '</div></header>'
     + '<div class="wrap">'
-    +   (isCoach ? '' :
-        '<div class="tabbar">'
-        + '<button class="tab" data-tab="input">記録を入力</button>'
-        + '<button class="tab" data-tab="list">記録一覧</button>'
-        + '<button class="tab" data-tab="home">ホーム</button>'
-        + '</div>')
+    +   '<div class="tabbar">'
+    +     '<button class="tab" data-tab="input">記録を入力</button>'
+    +     '<button class="tab" data-tab="list">記録一覧</button>'
+    +     '<button class="tab" data-tab="home">ホーム</button>'
+    +   '</div>'
     +   '<div id="tabContent"></div>'
     + '</div>'
     + '<footer>THE FULL CREW / '+esc(rc.race_name||'')+'<br>各自の走行状況（距離・最終記録日など）はチーム内で共有されます</footer>';
@@ -509,11 +508,6 @@ async function renderMain(){
     render();
   };
 
-  if(isCoach){
-    await renderHomeTabs($('tabContent'), true);
-    return;
-  }
-
   document.querySelectorAll('.tab').forEach(function(btn){
     if(btn.dataset.tab === state.tab) btn.classList.add('active');
     btn.onclick = function(){ state.tab = btn.dataset.tab; state.editingRecord = null; render(); };
@@ -521,7 +515,7 @@ async function renderMain(){
 
   if(state.tab === 'input') renderInputTab();
   else if(state.tab === 'list') renderListTab();
-  else if(state.tab === 'home') await renderHomeTabs($('tabContent'), false);
+  else if(state.tab === 'home') await renderHomeTabs($('tabContent'));
   else { state.tab = 'input'; renderInputTab(); }
 }
 
@@ -747,11 +741,11 @@ async function renderListTab(){
   renderMonthlyRecords($('myRecordsBlock'), records, true, renderListTab);
 }
 
-async function renderCoachTab(el){
+async function renderRaceConfigTab(el){
   el = el || $('tabContent');
   var rc = state.raceConfig;
   el.innerHTML =
-    '<section><h2>目標大会（編集）</h2>'
+    '<section><h2>大会設定</h2>'
     + '<div class="card">'
     +   '<div class="grid g2">'
     +     '<div><label>大会名</label><input id="rcName" value="'+esc(rc.race_name||'')+'"></div>'
@@ -760,7 +754,6 @@ async function renderCoachTab(el){
     +   '<div class="field" style="margin-top:12px;max-width:200px"><label>距離 (km)</label><input type="number" step="0.001" id="rcDist" value="'+esc(rc.target_distance_km||'')+'"></div>'
     +   '<button id="rcSave" style="margin-top:10px">保存する</button>'
     +   '<div class="msg" id="rcMsg"></div>'
-    +   '<p class="note" style="margin-top:14px">メンバーの走行状況は「みんなの状況」タブで見られます。</p>'
     + '</div></section>';
 
   $('rcSave').onclick = async function(){
