@@ -129,6 +129,13 @@
   .empty{text-align:center;color:var(--dim);padding:26px;font-size:13px}
   footer{text-align:center;color:var(--dim);font-size:11.5px;margin-top:44px;padding-top:22px;border-top:1px solid var(--line)}
 
+  /* ---------- 折りたたみ（大会設定など） ---------- */
+  details.settings{border-top:1px solid var(--line);padding-top:16px;margin-bottom:30px}
+  details.settings summary{cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:700;list-style:none}
+  details.settings summary::-webkit-details-marker{display:none}
+  details.settings summary::before{content:'⚙ '}
+  details.settings summary:hover{color:var(--text)}
+
   /* ---------- coach view ---------- */
   .memberCard{padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:12px}
   .memberCard .mchead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:10px;flex-wrap:wrap}
@@ -335,8 +342,8 @@ var app = $('app');
 
 var state = {
   user: null,        // {id, name, role}
-  tab: 'input',       // 'input' | 'list' | 'home'
-  homeTab: 'overview', // 'overview' | 'race' | 'guide1' | 'guide2' | 'official'（ホーム内タブ）
+  tab: 'input',       // 'input' | 'list' | 'overview' | 'guide'
+  guideSite: 'guide1', // ガイドタブで表示中の外部サイト
   raceConfig: null,
   membersCache: [],
   editingRecord: null // 編集中の記録（nullなら新規入力）
@@ -372,6 +379,24 @@ if(DEMO_MODE){
 /* ---------------- 起動 ---------------- */
 function defaultTabFor(){ return 'input'; }
 
+async function ensureRaceConfig(){
+  if(!state.raceConfig){
+    state.raceConfig = await Backend.getRaceConfig().catch(function(){
+      return {race_name:'目標大会未設定', race_date:null, target_distance_km:null};
+    });
+  }
+  return state.raceConfig;
+}
+
+function countdownHtml(rc){
+  var days = rc.race_date ? Math.ceil((new Date(rc.race_date) - new Date())/86400000) : null;
+  if(days === null) return '';
+  var text = days > 0
+    ? '🏅 '+esc(rc.race_name)+'まで あと '+days+' 日'
+    : '🏅 '+esc(rc.race_name)+' 当日・お疲れさまでした！';
+  return '<div class="countdown">'+text+'</div>';
+}
+
 async function boot(){
   var identity = loadIdentity();
   if(identity){
@@ -386,17 +411,22 @@ async function boot(){
   render();
 }
 
-/* ---------------- 未ログイン時の画面（みんなの状況＋インライン ログイン） ---------------- */
+/* ---------------- 未ログイン時の画面（みんなの状況・ガイド＋インライン ログイン） ---------------- */
 async function renderAuth(){
   var members = await Backend.listMembers().catch(function(){ return []; });
+  var rc = await ensureRaceConfig();
   var opts = members.map(function(m){
     return '<option value="'+esc(m.id)+'">'+esc(m.name)+(m.role==='coach'?'（先生）':'')+'</option>';
   }).join('');
+
+  // 未ログインでは自分の記録は開けないので、閲覧できるタブに寄せる
+  if(state.tab !== 'overview' && state.tab !== 'guide') state.tab = 'overview';
 
   app.innerHTML =
     '<header><div class="wrap">'
     +   '<div class="eyebrow">THE FULL CREW — 記録ツール</div>'
     +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
+    +   countdownHtml(rc)
     +   '<div class="userbar">'
     +     (members.length
           ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
@@ -407,7 +437,13 @@ async function renderAuth(){
           : '<div>メンバーが登録されていません。管理者に連絡してください。</div>')
     +   '</div>'
     + '</div></header>'
-    + '<div class="wrap"><div id="tabContent"></div></div>';
+    + '<div class="wrap">'
+    +   '<div class="tabbar">'
+    +     '<button class="tab" data-tab="overview">みんなの状況</button>'
+    +     '<button class="tab" data-tab="guide">ガイド</button>'
+    +   '</div>'
+    +   '<div id="tabContent"></div>'
+    + '</div>';
 
   if(members.length){
     $('loginBtn').onclick = function(){
@@ -421,44 +457,57 @@ async function renderAuth(){
     };
   }
 
-  await renderHomeTabs($('tabContent'));
+  wireTabBar();
+  renderCurrentTab();
 }
 
-/* ---------------- ホームタブ（みんなの状況・大会設定・外部リンク） ---------------- */
-async function renderHomeTabs(containerEl){
-  var tabs = [
-    {key:'overview', label:'みんなの状況'},
-    {key:'race', label:'大会設定'},
-    {key:'guide1', label:EXTERNAL_LINKS.guide1.label},
-    {key:'guide2', label:EXTERNAL_LINKS.guide2.label},
-    {key:'official', label:EXTERNAL_LINKS.official.label}
-  ];
-
-  containerEl.innerHTML =
-      '<div class="tabbar">'
-    +   tabs.map(function(t){ return '<button class="tab" data-hometab="'+t.key+'">'+esc(t.label)+'</button>'; }).join('')
-    + '</div>'
-    + '<div id="homeTabBody"></div>';
-
-  containerEl.querySelectorAll('[data-hometab]').forEach(function(btn){
-    if(btn.dataset.hometab === state.homeTab) btn.classList.add('active');
+function wireTabBar(){
+  document.querySelectorAll('.tab').forEach(function(btn){
+    if(btn.dataset.tab === state.tab) btn.classList.add('active');
     btn.onclick = function(){
-      state.homeTab = btn.dataset.hometab;
-      renderHomeTabs(containerEl);
+      state.tab = btn.dataset.tab;
+      state.editingRecord = null;
+      render();
+    };
+  });
+}
+
+function renderCurrentTab(){
+  if(state.tab === 'list') renderListTab();
+  else if(state.tab === 'overview') renderOverviewTab();
+  else if(state.tab === 'guide') renderGuideTab();
+  else renderInputTab();
+}
+
+/* ---------------- ガイドタブ（外部サイト＋大会設定） ---------------- */
+async function renderGuideTab(el){
+  el = el || $('tabContent');
+  var keys = ['guide1','guide2','official'];
+  if(keys.indexOf(state.guideSite) < 0) state.guideSite = 'guide1';
+  var link = EXTERNAL_LINKS[state.guideSite];
+
+  el.innerHTML =
+      '<div class="monthTabs">'
+    +   keys.map(function(k){
+          return '<button type="button" class="monthTab'+(k===state.guideSite?' active':'')+'" data-guide="'+k+'">'+esc(EXTERNAL_LINKS[k].label)+'</button>';
+        }).join('')
+    + '</div>'
+    + '<div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">'
+    +   '<iframe src="'+esc(link.url)+'" style="width:100%;height:70vh;min-height:420px;border:0;display:block"></iframe>'
+    + '</div>'
+    + '<p style="text-align:right;font-size:12px;margin-bottom:26px">'
+    +   '<a href="'+esc(link.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a>'
+    + '</p>'
+    + '<details class="settings"><summary>大会設定</summary><div id="raceConfigBody" style="margin-top:12px"></div></details>';
+
+  el.querySelectorAll('[data-guide]').forEach(function(btn){
+    btn.onclick = function(){
+      state.guideSite = btn.dataset.guide;
+      renderGuideTab(el);
     };
   });
 
-  var body = $('homeTabBody');
-  if(state.homeTab === 'overview'){
-    await renderOverviewTab(body);
-  } else if(state.homeTab === 'race'){
-    await renderRaceConfigTab(body);
-  } else {
-    var link = EXTERNAL_LINKS[state.homeTab];
-    body.innerHTML = '<div class="card" style="padding:0;overflow:hidden">'
-      + '<iframe src="'+esc(link.url)+'" style="width:100%;height:75vh;min-height:480px;border:0;display:block"></iframe>'
-      + '</div>';
-  }
+  await renderRaceConfigTab($('raceConfigBody'));
 }
 
 function showMsg(id, kind, text){
@@ -470,23 +519,14 @@ function showMsg(id, kind, text){
 
 /* ---------------- メイン画面 ---------------- */
 async function renderMain(){
-  if(!state.raceConfig){
-    state.raceConfig = await Backend.getRaceConfig().catch(function(){
-      return {race_name:'目標大会未設定', race_date:null, target_distance_km:null};
-    });
-  }
-  var rc = state.raceConfig;
-  var days = rc.race_date ? Math.ceil((new Date(rc.race_date) - new Date())/86400000) : null;
-  var countdownText = (days === null) ? ''
-    : (days > 0 ? '🏅 '+esc(rc.race_name)+'まで あと '+days+' 日' : '🏅 '+esc(rc.race_name)+' 当日・お疲れさまでした！');
-
+  var rc = await ensureRaceConfig();
   var isCoach = state.user.role === 'coach';
 
   app.innerHTML =
     '<header><div class="wrap">'
     +   '<div class="eyebrow">THE FULL CREW — 記録ツール</div>'
     +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
-    +   (countdownText ? '<div class="countdown">'+countdownText+'</div>' : '')
+    +   countdownHtml(rc)
     +   '<div class="userbar">'
     +     '<div>ようこそ、<b>'+esc(state.user.name)+'</b>さん <span class="badge '+(isCoach?'coach':'member')+'">'+(isCoach?'先生':'メンバー')+'</span></div>'
     +     '<button id="logoutBtn">別の人に切り替える</button>'
@@ -496,7 +536,8 @@ async function renderMain(){
     +   '<div class="tabbar">'
     +     '<button class="tab" data-tab="input">記録を入力</button>'
     +     '<button class="tab" data-tab="list">記録一覧</button>'
-    +     '<button class="tab" data-tab="home">ホーム</button>'
+    +     '<button class="tab" data-tab="overview">みんなの状況</button>'
+    +     '<button class="tab" data-tab="guide">ガイド</button>'
     +   '</div>'
     +   '<div id="tabContent"></div>'
     + '</div>'
@@ -508,15 +549,8 @@ async function renderMain(){
     render();
   };
 
-  document.querySelectorAll('.tab').forEach(function(btn){
-    if(btn.dataset.tab === state.tab) btn.classList.add('active');
-    btn.onclick = function(){ state.tab = btn.dataset.tab; state.editingRecord = null; render(); };
-  });
-
-  if(state.tab === 'input') renderInputTab();
-  else if(state.tab === 'list') renderListTab();
-  else if(state.tab === 'home') await renderHomeTabs($('tabContent'));
-  else { state.tab = 'input'; renderInputTab(); }
+  wireTabBar();
+  renderCurrentTab();
 }
 
 async function renderInputTab(){
@@ -743,10 +777,10 @@ async function renderListTab(){
 
 async function renderRaceConfigTab(el){
   el = el || $('tabContent');
+  await ensureRaceConfig();
   var rc = state.raceConfig;
   el.innerHTML =
-    '<section><h2>大会設定</h2>'
-    + '<div class="card">'
+      '<div class="card">'
     +   '<div class="grid g2">'
     +     '<div><label>大会名</label><input id="rcName" value="'+esc(rc.race_name||'')+'"></div>'
     +     '<div><label>大会日</label><input type="date" id="rcDate" value="'+esc(rc.race_date||'')+'"></div>'
@@ -754,7 +788,7 @@ async function renderRaceConfigTab(el){
     +   '<div class="field" style="margin-top:12px;max-width:200px"><label>距離 (km)</label><input type="number" step="0.001" id="rcDist" value="'+esc(rc.target_distance_km||'')+'"></div>'
     +   '<button id="rcSave" style="margin-top:10px">保存する</button>'
     +   '<div class="msg" id="rcMsg"></div>'
-    + '</div></section>';
+    + '</div>';
 
   $('rcSave').onclick = async function(){
     var data = {race_name: $('rcName').value.trim(), race_date: $('rcDate').value || null, target_distance_km: parseFloat($('rcDist').value) || null};
