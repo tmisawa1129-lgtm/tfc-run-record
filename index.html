@@ -159,25 +159,32 @@
     h1 .the{display:inline;font-size:20px;color:var(--dim);letter-spacing:0;margin-right:6px}
     .countdown{margin-top:8px;padding:5px 12px;font-size:12px}
     .userbar{margin-top:10px;padding-top:10px;font-size:12px}
+    /* 未ログイン時の「あなたは？[名前][入る]」を1行に収める */
+    .userbar select{flex:1;min-width:0;font-size:14px;padding:8px 10px}
+    .userbar button{white-space:nowrap}
     h2{font-size:12px;padding-bottom:8px;margin-bottom:14px}
     .wrap{padding:0 16px}
     section{margin-bottom:24px}
     .card{padding:16px;border-radius:10px}
 
-    /* --- タブバーを画面下に固定（アプリ風・親指で届く位置） --- */
+    /* --- タブバーを画面下に浮かせて固定（アプリ風・親指で届く位置） ---
+       Netlify無料プランの「Powered by Netlify」バッジが画面右下に最前面で
+       出るため、その上に重ならない高さに配置している --- */
     .tabbar{
-      position:fixed;left:0;right:0;bottom:0;z-index:50;
-      margin:0;gap:0;overflow:visible;
-      background:var(--bg2);border-top:1px solid var(--line2);border-bottom:0;
-      padding:6px 6px calc(6px + env(safe-area-inset-bottom));
-      box-shadow:0 -4px 16px rgba(0,0,0,.45);
+      position:fixed;left:10px;right:10px;z-index:50;
+      bottom:calc(74px + env(safe-area-inset-bottom));
+      margin:0;gap:4px;overflow:visible;
+      background:rgba(26,21,19,.97);
+      border:1px solid var(--line2);border-radius:14px;
+      padding:6px;
+      box-shadow:0 6px 22px rgba(0,0,0,.55);
     }
     .tabbar .tab{
-      flex:1;padding:9px 2px;font-size:11px;border-bottom:0;border-radius:8px;
+      flex:1;padding:9px 2px;font-size:11px;border-bottom:0;border-radius:10px;
       line-height:1.3;
     }
     .tabbar .tab.active{background:var(--accent-soft);border-bottom-color:transparent}
-    body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+    body{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
 
     /* --- 入力欄：iOSで自動ズームしないよう16px以上にする --- */
     input,select,textarea{font-size:16px;padding:10px 12px}
