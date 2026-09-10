@@ -136,15 +136,22 @@
   details.settings summary::before{content:'⚙ '}
   details.settings summary:hover{color:var(--text)}
 
-  /* ---------- coach view ---------- */
-  .memberCard{padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:12px}
-  .memberCard .mchead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:10px;flex-wrap:wrap}
-  .memberCard .mcname{font-size:15px;font-weight:700}
-  .memberCard .mclast{font-size:11.5px;color:var(--dim)}
-  .memberCard .mcstats{display:flex;gap:20px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px}
-  .memberCard .mcstats b{color:var(--text);font-variant-numeric:tabular-nums;font-size:15px;display:block}
-  .memberCard .mcstats span{display:block;margin-top:2px}
-  .memberCard .mcnote{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;margin-top:4px}
+  /* ---------- みんなの状況（人別の一覧） ---------- */
+  .memberRow{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    padding:13px 16px;margin-bottom:8px;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    color:var(--text);font-family:inherit;font-weight:400;
+  }
+  .memberRow:hover{background:var(--card2);border-color:var(--line2)}
+  .memberRow .mrMain{flex:1;min-width:0}
+  .memberRow .mrName{display:block;font-size:14.5px;font-weight:700}
+  .memberRow .mrLast{display:block;font-size:11.5px;color:var(--dim);margin-top:2px}
+  .memberRow .mrKm{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .memberRow .mrKm small{font-size:11px;color:var(--muted);font-weight:600;margin-left:2px}
+  .memberRow .mrChev{color:var(--dim);font-size:17px;line-height:1}
+  .memberRow.empty .mrName{color:var(--muted);font-weight:600}
+  .memberRow.empty .mrKm{color:var(--dim);font-weight:600}
 
   .recTable .unit{font-size:11px;color:var(--muted);font-weight:400}
 
@@ -216,9 +223,9 @@
       background:var(--bg2);padding:12px 14px;
     }
 
-    /* --- みんなの状況カード --- */
-    .memberCard{padding:14px 16px}
-    .memberCard .mcstats{gap:16px}
+    /* --- みんなの状況（人別の一覧） --- */
+    .memberRow{padding:12px 14px;gap:10px}
+    .memberRow .mrName{font-size:14px}
 
     /* --- ガイドの埋め込み --- */
     .monthTabs{gap:6px}
@@ -423,6 +430,7 @@ var state = {
   user: null,        // {id, name, role}
   tab: 'input',       // 'input' | 'list' | 'overview' | 'guide'
   guideSite: 'guide1', // ガイドタブで表示中の外部サイト
+  viewMember: null,   // みんなの状況で開いている人（null＝一覧表示）
   raceConfig: null,
   membersCache: [],
   editingRecord: null // 編集中の記録（nullなら新規入力）
@@ -546,6 +554,7 @@ function wireTabBar(){
     btn.onclick = function(){
       state.tab = btn.dataset.tab;
       state.editingRecord = null;
+      state.viewMember = null;
       render();
     };
   });
@@ -881,8 +890,18 @@ async function renderRaceConfigTab(el){
   };
 }
 
+function relDateLabel(dateStr){
+  var d = Math.floor((new Date(todayStr()) - new Date(dateStr)) / 86400000);
+  var md = esc(dateStr.slice(5).replace('-', '/'));
+  if(d === 0) return md + '（今日）';
+  if(d === 1) return md + '（昨日）';
+  return md + '（' + d + '日前）';
+}
+
 async function renderOverviewTab(el){
   el = el || $('tabContent');
+  if(state.viewMember) return renderMemberDetail(el);
+
   el.innerHTML = '<section><h2>みんなの状況</h2><div id="overviewList"><p class="note">読み込み中…</p></div></section>';
 
   var overview = await Backend.teamOverview().catch(function(){ return []; });
@@ -891,40 +910,63 @@ async function renderOverviewTab(el){
     listEl.innerHTML = '<div class="card empty">まだメンバーが登録されていません。</div>';
     return;
   }
-  listEl.innerHTML = overview.map(function(m){
-    var lastLabel = m.lastDate
-      ? (function(){
-          var d = Math.floor((new Date(todayStr()) - new Date(m.lastDate))/86400000);
-          return esc(m.lastDate.slice(5).replace('-','/')) + (d===0 ? '（今日）' : '（'+d+'日前）');
-        })()
-      : '記録なし';
-    return '<div class="memberCard">'
-      + '<div class="mchead"><div class="mcname">'+esc(m.name)+'</div><div class="mclast">最終記録: '+lastLabel+'</div></div>'
-      + '<div class="mcstats">'
-      +   '<div><span>今月</span><b>'+m.thisMonthKm.toFixed(1)+' km</b></div>'
-      +   (m.lastRpe ? '<div><span>直近RPE</span><b>'+m.lastRpe+'</b></div>' : '')
-      + '</div>'
-      + (m.lastMemo ? '<div class="mcnote">💬 '+esc(m.lastMemo)+'</div>' : '')
-      + '<button type="button" class="ghost tiny" style="margin-top:10px" data-detail="'+esc(m.id)+'">記録を見る</button>'
-      + '<div class="detailBox" id="detail-'+esc(m.id)+'" style="display:none;margin-top:10px"></div>'
-      + '</div>';
-  }).join('');
 
-  document.querySelectorAll('[data-detail]').forEach(function(btn){
-    btn.onclick = async function(){
-      var box = $('detail-'+btn.dataset.detail);
-      if(box.style.display === 'none'){
-        box.style.display = 'block';
-        btn.textContent = '閉じる';
-        box.innerHTML = '<p class="note">読み込み中…</p>';
-        var recs = await Backend.listMyRecords(btn.dataset.detail).catch(function(){ return []; });
-        renderMonthlyRecords(box, recs, false);
-      } else {
-        box.style.display = 'none';
-        btn.textContent = '記録を見る';
-      }
+  // 記録がある人を先に、その中では最終記録が新しい順に並べる
+  overview.sort(function(a, b){
+    if(!!a.lastDate !== !!b.lastDate) return a.lastDate ? -1 : 1;
+    if(a.lastDate && b.lastDate && a.lastDate !== b.lastDate) return a.lastDate < b.lastDate ? 1 : -1;
+    return a.name.localeCompare(b.name, 'ja');
+  });
+
+  listEl.innerHTML = overview.map(function(m){
+    return '<button type="button" class="memberRow'+(m.lastDate ? '' : ' empty')+'"'
+      +   ' data-member="'+esc(m.id)+'" data-name="'+esc(m.name)+'">'
+      + '<span class="mrMain">'
+      +   '<span class="mrName">'+esc(m.name)+'</span>'
+      +   '<span class="mrLast">'+(m.lastDate ? relDateLabel(m.lastDate) : 'まだ記録なし')+'</span>'
+      + '</span>'
+      + '<span class="mrKm">'+m.thisMonthKm.toFixed(1)+'<small>km</small></span>'
+      + '<span class="mrChev">›</span>'
+      + '</button>';
+  }).join('') + '<p class="note" style="margin-top:12px">名前をタップすると、その人の記録が見られます（今月の距離を表示）。</p>';
+
+  listEl.querySelectorAll('[data-member]').forEach(function(btn){
+    btn.onclick = function(){
+      state.viewMember = {id: btn.dataset.member, name: btn.dataset.name};
+      renderOverviewTab(el);
     };
   });
+}
+
+async function renderMemberDetail(el){
+  var target = state.viewMember;
+  el.innerHTML =
+      '<button type="button" class="ghost tiny" id="backToTeam" style="margin-bottom:14px">← みんなの状況</button>'
+    + '<section><h2>'+esc(target.name)+' の記録</h2>'
+    +   '<div class="card" id="memberSummary"><p class="note">読み込み中…</p></div>'
+    +   '<div class="card" id="memberRecords"></div>'
+    + '</section>';
+
+  $('backToTeam').onclick = function(){
+    state.viewMember = null;
+    renderOverviewTab(el);
+  };
+
+  var recs = await Backend.listMyRecords(target.id).catch(function(){ return []; });
+  var thisMonth = currentMonthKey();
+  var sum = function(list){ return list.reduce(function(a, r){ return a + Number(r.distance_km||0); }, 0); };
+  var monthKm = sum(recs.filter(function(r){ return r.date.slice(0,7) === thisMonth; }));
+
+  $('memberSummary').innerHTML =
+      '<div class="grid g2">'
+    +   '<div><label>今月</label><div style="font-size:22px;font-weight:800">'+monthKm.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
+    +   '<div><label>これまでの合計</label><div style="font-size:22px;font-weight:800">'+sum(recs).toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
+    + '</div>'
+    + '<p class="note" style="margin-top:10px">記録 '+recs.length+'件'
+    +   (recs.length ? ' ／ 最終記録 '+relDateLabel(recs[0].date) : '')
+    + '</p>';
+
+  renderMonthlyRecords($('memberRecords'), recs, false);
 }
 
 /* ---------------- ルート描画 ---------------- */
