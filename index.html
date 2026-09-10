@@ -108,6 +108,11 @@
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
   .field{margin-bottom:14px}
   .grid{display:grid;gap:12px}
+  /* グリッドの子は既定だと中身より小さくなれないため、iOSの日付欄などが
+     枠をはみ出して隣の欄と重なる。min-width:0 で必ず枠内に収める */
+  .grid > div{min-width:0}
+  input,select,textarea{max-width:100%}
+  input[type=date]{min-width:0}
   .g2{grid-template-columns:1fr 1fr}
   .g4{grid-template-columns:repeat(4,1fr)}
   @media(max-width:620px){.g4{grid-template-columns:1fr 1fr}}
@@ -174,24 +179,30 @@
     section{margin-bottom:24px}
     .card{padding:16px;border-radius:10px}
 
-    /* --- タブバーを画面下に浮かせて固定（アプリ風・親指で届く位置） ---
-       Netlify無料プランの「Powered by Netlify」バッジが画面右下に最前面で
-       出るため、その上に重ならない高さに配置している --- */
+    /* --- タブバーは画面下端に固定 ---
+       Netlify無料プランの「Powered by Netlify」バッジ（右下・最前面・約64px）が
+       タブに重なると押せなくなるため、バー自体を下端に貼り付けたうえで
+       下側に余白を取り、ボタンはバッジより上に並べている --- */
     .tabbar{
-      position:fixed;left:10px;right:10px;z-index:50;
-      bottom:calc(74px + env(safe-area-inset-bottom));
+      position:fixed;left:0;right:0;bottom:0;z-index:50;
       margin:0;gap:4px;overflow:visible;
-      background:rgba(26,21,19,.97);
-      border:1px solid var(--line2);border-radius:14px;
-      padding:6px;
-      box-shadow:0 6px 22px rgba(0,0,0,.55);
+      background:var(--bg2);
+      border:0;border-top:1px solid var(--line2);border-radius:0;
+      padding:6px 8px calc(66px + env(safe-area-inset-bottom));
+      box-shadow:0 -6px 20px rgba(0,0,0,.5);
     }
     .tabbar .tab{
-      flex:1;padding:9px 2px;font-size:11px;border-bottom:0;border-radius:10px;
+      flex:1;padding:10px 2px;font-size:11px;border-bottom:0;border-radius:10px;
       line-height:1.3;
     }
     .tabbar .tab.active{background:var(--accent-soft);border-bottom-color:transparent}
-    body{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+    body{padding-bottom:calc(140px + env(safe-area-inset-bottom))}
+
+    /* --- ヘッダーの「ようこそ／さん」はモバイルでは省いて、
+           「別の人に切り替える」が見切れないようにする --- */
+    .greet{display:none}
+    .whoami{display:flex;align-items:center;gap:6px;min-width:0}
+    .whoami b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
     /* --- 入力欄：iOSで自動ズームしないよう16px以上にする --- */
     input,select,textarea{font-size:16px;padding:10px 12px}
@@ -616,7 +627,7 @@ async function renderMain(){
     +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
     +   countdownHtml(rc)
     +   '<div class="userbar">'
-    +     '<div>ようこそ、<b>'+esc(state.user.name)+'</b>さん <span class="badge '+(isCoach?'coach':'member')+'">'+(isCoach?'先生':'メンバー')+'</span></div>'
+    +     '<div class="whoami"><span class="greet">ようこそ、</span><b>'+esc(state.user.name)+'</b><span class="greet">さん</span> <span class="badge '+(isCoach?'coach':'member')+'">'+(isCoach?'先生':'メンバー')+'</span></div>'
     +     '<button id="logoutBtn">別の人に切り替える</button>'
     +   '</div>'
     + '</div></header>'
