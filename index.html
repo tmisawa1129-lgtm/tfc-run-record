@@ -112,7 +112,12 @@
      枠をはみ出して隣の欄と重なる。min-width:0 で必ず枠内に収める */
   .grid > div{min-width:0}
   input,select,textarea{max-width:100%}
-  input[type=date]{min-width:0}
+  /* iOS Safari の日付欄は既定の見た目のままだと中身の幅より小さくならず、
+     枠を突き抜けて隣の欄に重なる。ネイティブ装飾を外して幅を固定する */
+  input[type=date]{
+    -webkit-appearance:none;appearance:none;
+    width:100%;min-width:0;display:block;
+  }
   .g2{grid-template-columns:1fr 1fr}
   .g4{grid-template-columns:repeat(4,1fr)}
   @media(max-width:620px){.g4{grid-template-columns:1fr 1fr}}
@@ -206,6 +211,10 @@
 
     /* --- 入力欄：iOSで自動ズームしないよう16px以上にする --- */
     input,select,textarea{font-size:16px;padding:10px 12px}
+    /* iOSの日付欄は幅が縮まないため、スマホでは1行まるごと使う
+       （隣に欄を置かなければ重なりようがない） */
+    .g4 > .dateField{grid-column:1 / -1}
+    .dateField input{text-align:left}
     button{padding:12px 18px}
     button.tiny{padding:8px 12px;font-size:12px}
     label{font-size:10.5px}
@@ -670,12 +679,10 @@ async function renderInputTab(){
     + (lastRecord ? '<button type="button" class="ghost tiny" id="copyLastBtn" style="margin-bottom:12px">前回の記録をコピー（'+esc(Number(lastRecord.distance_km).toFixed(2))+'km・'+esc(lastRecord.duration_text)+'）</button>' : '')
     + '<div class="card">'
     +   '<div class="grid g4">'
-    +     '<div><label>日付</label><input type="date" id="fDate" value="'+esc(editing ? editing.date : todayStr())+'"></div>'
+    +     '<div class="dateField"><label>日付</label><input type="date" id="fDate" value="'+esc(editing ? editing.date : todayStr())+'"></div>'
     +     '<div><label>距離 (km)</label><input type="number" inputmode="decimal" id="fDist" step="0.01" placeholder="10.00" value="'+(editing ? editing.distance_km : '')+'"></div>'
     +     '<div><label>時間</label><input type="text" id="fDuration" placeholder="52:30" value="'+esc(editing ? editing.duration_text : '')+'"></div>'
     +     '<div><label>ペース (分:秒/km)</label><input type="text" id="fPace" placeholder="5:15" value="'+esc(editing ? editing.pace_text : '')+'"></div>'
-    +   '</div>'
-    +   '<div class="grid g4" style="margin-top:12px">'
     +     '<div><label>平均心拍 (bpm)</label><input type="number" inputmode="numeric" id="fHr" placeholder="145" value="'+(editing ? editing.heart_rate : '')+'"></div>'
     +     '<div><label>ピッチ (spm・任意)</label><input type="number" inputmode="numeric" id="fCadence" placeholder="172" value="'+(editing ? (editing.cadence!=null?editing.cadence:'') : lastCadence)+'"></div>'
     +     '<div><label>接地時間 (ms・任意)</label><input type="number" inputmode="numeric" id="fGct" placeholder="245" value="'+(editing ? (editing.ground_contact_ms!=null?editing.ground_contact_ms:'') : lastGct)+'"></div>'
