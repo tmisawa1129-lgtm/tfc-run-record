@@ -10,31 +10,34 @@ THE FULL CREW のメンバーが、各自のランニング記録（距離・時
 
 ## 公開URL
 
-**https://tfc-run-record.netlify.app/**
+**https://tfc-run-record.pages.dev/**
 
-ログイン不要。`index.html` を編集して push すれば、GitHub→Netlifyが自動でこのURLに
-反映する（今のランニング記録サイトと同じ「編集してpushするだけ」の感覚で使える）。
+ログイン不要。`index.html` を編集して push すれば、GitHub→Cloudflare Pagesが
+自動でこのURLに反映する（30秒ほど）。
 
-ホスティング先はNetlify（個人名が入らないURLにするため）。GitHubリポジトリ自体は
-そのまま使っているので、pushの手順はこれまでと変わらない。
-旧URL（`tmisawa1129-lgtm.github.io/tfc-run-record/`）もまだ生きているが、
-今後はNetlifyの方を案内する。
+### ホスティングの経緯
+
+| 時期 | 公開先 | やめた理由 |
+|---|---|---|
+| 〜2026-09-06 | GitHub Pages | URLにアカウント名（tmisawa1129-lgtm）が入る |
+| 〜2026-09-11 | Netlify | 無料プランは**月300クレジット・本番デプロイ1回15クレジット＝月20回まで**。開発中の改修で20回に達し、以降のデプロイがすべてスキップされた。加えて「Powered by Netlify」バッジが必須表示でスマホの下部ナビに重なった |
+| 2026-09-11〜 | **Cloudflare Pages** | 無料で月500ビルド、バッジなし、URLに個人名なし |
+
+旧URL（`tfc-run-record.netlify.app` / `tmisawa1129-lgtm.github.io/tfc-run-record/`）も
+まだ表示はされるが、今後の改修は Cloudflare Pages にだけ反映される。
+メンバーには Cloudflare Pages のURLを案内する。
+
+補足：メンバーが入力する記録はSupabaseに保存されるので、記録の追加や
+tetsuの同期ではデプロイは発生しない。デプロイが走るのは画面（index.html）を直したときだけ。
 
 ---
 
-## 今の状態（2026-09-09時点）
+## 今の状態（2026-09-11時点）
 
-- コード完成、Supabase設定完了、Netlifyで公開済み。チーム全員が上のURLから使える
-- メンバー8名（先生1名含む）登録済み。tetsuの記録27件（CSVマスターから同期）が入っている
-- スマホ利用を前提にモバイルUIを最適化済み
+- Cloudflare Pagesで公開中。チーム全員が上のURLから使える（まだメンバーには未共有）
+- メンバー8名（先生1名含む）登録済み。tetsuの記録29件（CSVマスターから同期）が入っている
+- スマホ利用を前提にモバイルUIを最適化済み（実機のiPhoneで確認しながら調整）
 - リポジトリ：https://github.com/tmisawa1129-lgtm/tfc-run-record
-
-### 未決の検討事項
-
-- **Netlify無料プランのバッジ**：全訪問者の画面右下に「Powered by Netlify」バッジ
-  （202×64px・最前面）が表示される。下部ナビと重なってタブが押せなくなっていたため、
-  ナビをバッジの上に浮かせて回避済み。消したい場合は Cloudflare Pages に移す
-  （無料・バッジなし・`〇〇.pages.dev`）か、Netlifyの有料プランにする必要がある
 
 ---
 
