@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ラン記録_マスター.csv → チーム記録ツール（Supabase）へ tetsu の記録を同期する。
+ラン記録_マスター.csv → チーム記録ツール（Supabase）へ Tetsu の記録を同期する。
 
 使い方（ターミナルで）:
     python3 sync_tetsu.py            # 新しい記録を追加する
@@ -20,7 +20,7 @@ import urllib.request
 CSV_PATH = "/Users/mt/Documents/Claude Code/ランニング記録/2_記録データ/ラン記録_マスター.csv"
 SUPABASE_URL = "https://jbqrgsctbxuhclupzxqo.supabase.co"
 SUPABASE_KEY = "sb_publishable_ZeWiEErJromXkmt0WQgZbw_UYcayrB0"
-MEMBER_ID = "c6b96a03-9810-44c5-b77d-beb801d7c3c2"  # tetsu
+MEMBER_ID = "c6b96a03-9810-44c5-b77d-beb801d7c3c2"  # Tetsu（名前を変えてもIDは変わらない）
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -51,6 +51,17 @@ def to_int(s):
     return int(float(s)) if is_number(s) else None
 
 
+def to_seconds(s):
+    """52:30 や 1:02:30 を秒に直す"""
+    parts = (s or "").strip().split(":")
+    if not parts or not all(p.isdigit() for p in parts):
+        return None
+    total = 0
+    for p in parts:
+        total = total * 60 + int(p)
+    return total
+
+
 def convert_pace(s):
     """7'48\" のような表記を 7:48 に直す（チーム記録ツール側の書式に合わせる）"""
     s = (s or "").strip()
@@ -70,12 +81,17 @@ def read_csv_rows():
                 rows.append({"skip": "心拍なし", "date": date_raw})
                 continue
 
-            # このCSVは行によって「備考」と「Zone2秒」の中身が入れ替わっていることがある。
-            # 備考が数値だけ かつ Zone2秒が文章なら、入れ替わりとみなして直す。
-            memo = (r.get("備考") or "").strip()
+            # CSVの「備考」は個人用の書き方（自己ベスト表記など）なので、チームに見える
+            # メモには使わず、数値から客観的な一言だけを作る（例：「Zone2 91%」）。
+            # このCSVは行によって「備考」と「Zone2秒」の中身が入れ替わっているため、
+            # 数値が入っている方を Zone2秒 として扱う。
+            note = (r.get("備考") or "").strip()
             zone2 = (r.get("Zone2秒") or "").strip()
-            if is_number(memo) and zone2 and not is_number(zone2):
-                memo = zone2
+            zone2_sec = float(zone2) if is_number(zone2) else (float(note) if is_number(note) else None)
+            duration_sec = to_seconds(r.get("時間"))
+            memo = None
+            if zone2_sec is not None and duration_sec:
+                memo = "Zone2 {}%".format(round(zone2_sec / duration_sec * 100))
 
             rows.append({
                 "date": "{}-{}-{}".format(date_raw[:4], date_raw[4:6], date_raw[6:]),
@@ -86,7 +102,7 @@ def read_csv_rows():
                 "cadence": to_int(r.get("ピッチ表示値")),
                 "ground_contact_ms": to_int(r.get("接地時間ms")),
                 "rpe": None,
-                "memo": memo or None,
+                "memo": memo,
             })
     return rows
 
