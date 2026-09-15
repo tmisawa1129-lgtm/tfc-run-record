@@ -1,0 +1,28 @@
+# Supabaseの無料プランは7日間アクセスがないと一時停止するため、
+# 3日に1回データベースに軽くアクセスして停止を防ぐ。
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: "0 0 */3 * *"   # 3日おき 午前9時（日本時間）
+  workflow_dispatch:         # GitHubの画面から手動でも実行できるように
+
+permissions:
+  actions: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supabaseにアクセス
+        run: |
+          curl -sf "https://jbqrgsctbxuhclupzxqo.supabase.co/rest/v1/race_config?select=id" \
+            -H "apikey: sb_publishable_ZeWiEErJromXkmt0WQgZbw_UYcayrB0" \
+            -H "Authorization: Bearer sb_publishable_ZeWiEErJromXkmt0WQgZbw_UYcayrB0"
+
+      # GitHubは60日間リポジトリに変更がないと定期実行を自動で止めるので、
+      # 毎回「有効化」し直して止まらないようにする
+      - name: 定期実行が止まらないように有効化し直す
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keepalive.yml/enable"
