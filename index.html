@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260914-3 （公開中の版を確認するための目印） -->
+<!-- build: 20260915-1 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -142,11 +142,6 @@
   footer{text-align:center;color:var(--dim);font-size:11.5px;margin-top:44px;padding-top:22px;border-top:1px solid var(--line)}
 
   /* ---------- 折りたたみ（大会設定など） ---------- */
-  details.settings{border-top:1px solid var(--line);padding-top:16px;margin-bottom:30px}
-  details.settings summary{cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:700;list-style:none}
-  details.settings summary::-webkit-details-marker{display:none}
-  details.settings summary::before{content:'⚙ '}
-  details.settings summary:hover{color:var(--text)}
 
   /* ---------- みんなの状況（人別の一覧） ---------- */
   .memberRow{
@@ -628,8 +623,7 @@ async function renderGuideTab(el){
     + '</div>'
     + '<p style="text-align:right;font-size:12px;margin-bottom:26px">'
     +   '<a href="'+esc(link.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a>'
-    + '</p>'
-    + '<details class="settings"><summary>大会設定</summary><div id="raceConfigBody" style="margin-top:12px"></div></details>';
+    + '</p>';
 
   el.querySelectorAll('[data-guide]').forEach(function(btn){
     btn.onclick = function(){
@@ -637,8 +631,6 @@ async function renderGuideTab(el){
       renderGuideTab(el);
     };
   });
-
-  await renderRaceConfigTab($('raceConfigBody'));
 }
 
 function showMsg(id, kind, text){
@@ -908,33 +900,6 @@ async function renderListTab(){
     + '</section>';
 
   renderMonthlyRecords($('myRecordsBlock'), records, true, renderListTab);
-}
-
-async function renderRaceConfigTab(el){
-  el = el || $('tabContent');
-  await ensureRaceConfig();
-  var rc = state.raceConfig;
-  el.innerHTML =
-      '<div class="card">'
-    +   '<div class="grid g2">'
-    +     '<div><label>大会名</label><input id="rcName" value="'+esc(rc.race_name||'')+'"></div>'
-    +     '<div><label>大会日</label><input type="date" id="rcDate" value="'+esc(rc.race_date||'')+'"></div>'
-    +   '</div>'
-    +   '<div class="field" style="margin-top:12px;max-width:200px"><label>距離 (km)</label><input type="number" step="0.001" id="rcDist" value="'+esc(rc.target_distance_km||'')+'"></div>'
-    +   '<button id="rcSave" style="margin-top:10px">保存する</button>'
-    +   '<div class="msg" id="rcMsg"></div>'
-    + '</div>';
-
-  $('rcSave').onclick = async function(){
-    var data = {race_name: $('rcName').value.trim(), race_date: $('rcDate').value || null, target_distance_km: parseFloat($('rcDist').value) || null};
-    try{
-      await Backend.setRaceConfig(data);
-      state.raceConfig = Object.assign({}, rc, data);
-      showMsg('rcMsg','ok','保存しました。');
-    }catch(e){
-      showMsg('rcMsg','err','保存に失敗しました：'+e.message);
-    }
-  };
 }
 
 function relDateLabel(dateStr){

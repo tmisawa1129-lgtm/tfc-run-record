@@ -27,4 +27,5 @@ drop policy if exists "anon full access race_config" on race_config;
 drop policy if exists "anon select race_config" on race_config;
 drop policy if exists "anon update race_config" on race_config;
 create policy "anon select race_config" on race_config for select using (true);
-create policy "anon update race_config" on race_config for update using (true) with check (true);
+-- ※2026-09-15 大会設定の変更フォームを画面から削除したため、更新も禁止（読むだけ）
+-- （削除済み）create policy "anon update race_config" on race_config for update using (true) with check (true);
