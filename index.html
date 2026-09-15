@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260915-1 （公開中の版を確認するための目印） -->
+<!-- build: 20260915-2 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -66,7 +66,6 @@
 
   /* ---------- badge ---------- */
   .badge{display:inline-block;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.03em}
-  .badge.coach{background:var(--accent-soft);color:var(--accent)}
   .badge.member{background:var(--card2);color:var(--muted);border:1px solid var(--line2)}
 
   /* ---------- tabs ---------- */
@@ -540,8 +539,10 @@ async function boot(){
 async function renderAuth(){
   var members = await Backend.listMembers().catch(function(){ return []; });
   var rc = await ensureRaceConfig();
+  // 先生は記録を入力しないので名前の選択肢に出さない（みんなの状況はログインなしで見られる）
+  members = members.filter(function(m){ return m.role !== 'coach'; });
   var opts = members.map(function(m){
-    return '<option value="'+esc(m.id)+'">'+esc(m.name)+(m.role==='coach'?'（先生）':'')+'</option>';
+    return '<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>';
   }).join('');
 
   // 未ログインでは自分の記録は開けないので、閲覧できるタブに寄せる
@@ -643,7 +644,6 @@ function showMsg(id, kind, text){
 /* ---------------- メイン画面 ---------------- */
 async function renderMain(){
   var rc = await ensureRaceConfig();
-  var isCoach = state.user.role === 'coach';
 
   app.innerHTML =
     '<header><div class="wrap">'
@@ -651,7 +651,7 @@ async function renderMain(){
     +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
     +   countdownHtml(rc)
     +   '<div class="userbar">'
-    +     '<div class="whoami"><span class="greet">ようこそ、</span><b>'+esc(state.user.name)+'</b><span class="greet">さん</span> <span class="badge '+(isCoach?'coach':'member')+'">'+(isCoach?'先生':'メンバー')+'</span></div>'
+    +     '<div class="whoami"><span class="greet">ようこそ、</span><b>'+esc(state.user.name)+'</b><span class="greet">さん</span></div>'
     +     '<button id="logoutBtn">別の人に切り替える</button>'
     +   '</div>'
     + '</div></header>'
