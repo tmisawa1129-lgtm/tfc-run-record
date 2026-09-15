@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<!-- build: 20260914-2 （公開中の版を確認するための目印） -->
+<!-- build: 20260914-3 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>THE FULL CREW | チーム記録ツール</title>
 <meta name="theme-color" content="#0d0a09">
+<meta name="robots" content="noindex, nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
@@ -285,6 +286,28 @@ function parseDurationToSec(s){
   if(parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
   return null;
 }
+/* 打ち間違いっぽい値を見つける（保存前に確認を出すため。保存自体は止めない） */
+function unusualValueWarnings(v){
+  var w = [];
+  if(v.date > todayStr()) w.push('日付が未来になっています（' + v.date + '）');
+  if(v.dist > 50) w.push('距離が ' + v.dist + 'km です（小数点の打ち忘れ？）');
+  if(v.dist < 0.5) w.push('距離が ' + v.dist + 'km です');
+  if(v.hr < 60 || v.hr > 210) w.push('平均心拍が ' + v.hr + ' です');
+  var durSec = parseDurationToSec(v.duration);
+  var paceSec = parseDurationToSec(v.pace);
+  if(!durSec) w.push('時間「' + v.duration + '」の形が読み取れません（例：52:30 / 1:05:00）');
+  if(!paceSec) w.push('ペース「' + v.pace + '」の形が読み取れません（例：5:15）');
+  if(paceSec && (paceSec < 150 || paceSec > 1200)) w.push('ペースが 1kmあたり ' + v.pace + ' です');
+  if(durSec && paceSec && v.dist > 0){
+    var calc = durSec / v.dist;
+    if(Math.abs(calc - paceSec) / calc > 0.15){
+      w.push('距離と時間から計算したペース（' + formatPace(calc) + '）と、入力したペース（' + v.pace + '）が大きく違います');
+    }
+  }
+  if(v.cadence != null && (v.cadence < 100 || v.cadence > 230)) w.push('ピッチが ' + v.cadence + ' です');
+  if(v.gct != null && (v.gct < 150 || v.gct > 400)) w.push('接地時間が ' + v.gct + 'ms です');
+  return w;
+}
 function formatPace(secPerKm){
   var m = Math.floor(secPerKm/60), s = Math.round(secPerKm%60);
   if(s === 60){ m++; s = 0; }
@@ -391,12 +414,13 @@ var SupabaseBackend = (function(){
       return r.data;
     },
     async listMyRecords(memberId){
-      var r = await client().from('records').select('*').eq('member_id', memberId).order('date', {ascending:false});
+      var r = await client().from('records').select('*').eq('member_id', memberId).is('deleted_at', null).order('date', {ascending:false});
       if(r.error) throw r.error;
       return r.data;
     },
     async deleteRecord(id){
-      var r = await client().from('records').delete().eq('id', id);
+      // 本当には消さず「削除した日時」を入れて画面から隠す（あとで戻せるように）
+      var r = await client().from('records').update({deleted_at: new Date().toISOString()}).eq('id', id);
       if(r.error) throw r.error;
     },
     async updateRecord(id, data){
@@ -416,7 +440,7 @@ var SupabaseBackend = (function(){
       var thisMonth = currentMonthKey();
       var mr = await client().from('members').select('id,name').eq('role','member').order('name');
       if(mr.error) throw mr.error;
-      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe').order('date', {ascending:false});
+      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe').is('deleted_at', null).order('date', {ascending:false});
       if(rr.error) throw rr.error;
       var byMember = {};
       rr.data.forEach(function(rec){
@@ -737,6 +761,12 @@ async function renderInputTab(){
       showMsg('inputMsg','err','日付・距離・時間・ペース・平均心拍は必須です。');
       return;
     }
+    var warnings = unusualValueWarnings({
+      date: $('fDate').value, dist: dist, duration: duration, pace: pace, hr: hr,
+      cadence: $('fCadence').value ? parseInt($('fCadence').value,10) : null,
+      gct: $('fGct').value ? parseInt($('fGct').value,10) : null
+    });
+    if(warnings.length && !confirm('入力ミスかもしれない値があります。\n\n・' + warnings.join('\n・') + '\n\nこのまま保存しますか？')) return;
     var data = {
       date: $('fDate').value,
       distance_km: dist,

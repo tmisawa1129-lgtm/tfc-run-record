@@ -23,6 +23,7 @@ create table if not exists records (
   ground_contact_ms integer,
   rpe integer check (rpe between 1 and 10),
   memo text,
+  deleted_at timestamptz,  -- 削除した日時（空＝表示中）。削除は画面から隠すだけで、あとで戻せる
   created_at timestamptz not null default now()
 );
 
@@ -45,11 +46,28 @@ alter table race_config enable row level security;
 -- Supabase自体のログイン機能は使いません。そのためアクセスキー（anon key）を
 -- 持っている人（＝チームメンバー）は誰でも読み書きできる設定にしています。
 -- 少人数の信頼できるチーム内での利用を前提とした割り切りです。
-drop policy if exists "anon full access members" on members;
-create policy "anon full access members" on members for all using (true) with check (true);
-
+-- ただし「本当の削除」は許可しない（2026-09-14変更。記録の削除は deleted_at を入れて隠す）
+-- アプリのキーでは「本当の削除」をできないようにする（読む・追加・更新だけ許可）
 drop policy if exists "anon full access records" on records;
-create policy "anon full access records" on records for all using (true) with check (true);
+drop policy if exists "anon select records" on records;
+drop policy if exists "anon insert records" on records;
+drop policy if exists "anon update records" on records;
+create policy "anon select records" on records for select using (true);
+create policy "anon insert records" on records for insert with check (true);
+create policy "anon update records" on records for update using (true) with check (true);
 
+-- メンバーを消すと記録も一緒に消えるため、メンバーも削除不可にする
+drop policy if exists "anon full access members" on members;
+drop policy if exists "anon select members" on members;
+drop policy if exists "anon insert members" on members;
+drop policy if exists "anon update members" on members;
+create policy "anon select members" on members for select using (true);
+create policy "anon insert members" on members for insert with check (true);
+create policy "anon update members" on members for update using (true) with check (true);
+
+-- 大会設定も読む・更新だけ
 drop policy if exists "anon full access race_config" on race_config;
-create policy "anon full access race_config" on race_config for all using (true) with check (true);
+drop policy if exists "anon select race_config" on race_config;
+drop policy if exists "anon update race_config" on race_config;
+create policy "anon select race_config" on race_config for select using (true);
+create policy "anon update race_config" on race_config for update using (true) with check (true);
