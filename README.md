@@ -23,8 +23,7 @@ THE FULL CREW のメンバーが、各自のランニング記録（距離・時
 | 〜2026-09-11 | Netlify | 無料プランは**月300クレジット・本番デプロイ1回15クレジット＝月20回まで**。開発中の改修で20回に達し、以降のデプロイがすべてスキップされた。加えて「Powered by Netlify」バッジが必須表示でスマホの下部ナビに重なった |
 | 2026-09-11〜 | **Cloudflare Pages** | 無料で月500ビルド、バッジなし、URLに個人名なし |
 
-旧URLのうち GitHub Pages は2026-09-14に停止済み。Netlify（`tfc-run-record.netlify.app`）は
-削除予定（Netlifyのログインが必要なため本人が操作）。メンバーには Cloudflare Pages のURLを案内する。
+旧URL（GitHub Pages / `tfc-run-record.netlify.app`）は2026-09-15までに停止・削除済み。メンバーには Cloudflare Pages のURLを案内する。
 
 補足：メンバーが入力する記録はSupabaseに保存されるので、記録の追加や
 Tetsuの同期ではデプロイは発生しない。デプロイが走るのは画面（index.html）を直したときだけ。
