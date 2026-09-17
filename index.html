@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260918-1 （公開中の版を確認するための目印） -->
+<!-- build: 20260918-2 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -512,8 +512,6 @@ async function ensureRaceConfig(){
   return state.raceConfig;
 }
 
-var RACE_START_TIME = '10:30';  // 公式サイトの大会要項より（マラソンの部の号砲）
-
 function countdownHtml(rc){
   if(!rc.race_date) return '';
   // 日付どうしの差で数える（時刻を混ぜると大会当日の朝に「あと1日」と出てしまうため）
@@ -523,9 +521,9 @@ function countdownHtml(rc){
   var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   var days = Math.round((race - today)/86400000);
   var text = days > 0
-    ? '🏅 '+esc(rc.race_name)+'まで あと '+days+' 日（スタート '+RACE_START_TIME+'）'
+    ? '🏅 '+esc(rc.race_name)+'まで あと '+days+' 日'
     : days === 0
-      ? '🏅 '+esc(rc.race_name)+' 当日・'+RACE_START_TIME+'スタート！'
+      ? '🏅 '+esc(rc.race_name)+' 当日・いってらっしゃい！'
       : '🏅 '+esc(rc.race_name)+' お疲れさまでした！';
   return '<div class="countdown">'+text+'</div>';
 }
