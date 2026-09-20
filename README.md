@@ -56,7 +56,7 @@ Tetsuの同期ではデプロイは発生しない。デプロイが走るのは
 ターミナルで以下を実行すると、まだ登録されていない記録だけが追加される。
 
 ```
-cd "/Users/mt/Documents/Claude Code/TFCチーム記録ツール"
+cd "/Users/mt/Documents/Claude Code/ランニング記録/TFCチーム記録ツール"
 python3 sync_Tetsu.py            # 追加する
 python3 sync_Tetsu.py --dry-run  # 追加せず内容だけ確認する
 ```
