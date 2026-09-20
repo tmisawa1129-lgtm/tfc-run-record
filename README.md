@@ -48,7 +48,7 @@ Tetsuの同期ではデプロイは発生しない。デプロイが走るのは
 | `schema.sql` | Supabase側で実行した、データの入れ物の定義 |
 | `20260906_セットアップ手順.md` | Supabaseを設定した手順の記録（設定済みのため作業自体は不要） |
 | `manifest.webmanifest` | スマホのホーム画面に追加したときアプリっぽく見せるための設定 |
-| `sync_Tetsu.py` | `ラン記録_マスター.csv` から Tetsu の記録をこのツールへ同期するスクリプト |
+| `sync_tetsu.py` | `ラン記録_マスター.csv` から Tetsu の記録をこのツールへ同期するスクリプト |
 
 ### Tetsuの記録を同期する
 
@@ -57,8 +57,8 @@ Tetsuの同期ではデプロイは発生しない。デプロイが走るのは
 
 ```
 cd "/Users/mt/Documents/Claude Code/ランニング記録/TFCチーム記録ツール"
-python3 sync_Tetsu.py            # 追加する
-python3 sync_Tetsu.py --dry-run  # 追加せず内容だけ確認する
+python3 sync_tetsu.py            # 追加する
+python3 sync_tetsu.py --dry-run  # 追加せず内容だけ確認する
 ```
 
 何度実行しても二重登録にはならない（日付＋距離が一致する記録はスキップする）。
