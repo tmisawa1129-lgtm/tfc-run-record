@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260922-6 （公開中の版を確認するための目印） -->
+<!-- build: 20260922-7 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -713,13 +713,16 @@ function hwProgressText(pg){
 function renderLevelPicker(el, after){
   el.innerHTML =
       '<section><h2>あなたの宿題のレベルは？</h2>'
-    + '<p class="note" style="margin-bottom:14px">宿題は必須ではありません。自分のペースで使ってください。<br>基準は「歩かずに、会話できるペースで走り続けられる時間」です（宿題ガイドより）。あとから変えられます。</p>'
+    + '<p class="note" style="margin-bottom:14px">選ぶと、自分の宿題の進み具合がホームに出ます（自分にだけ見えます）。使わなくても大丈夫です。<br>基準は「歩かずに、会話できるペースで走り続けられる時間」です（宿題ガイドより）。</p>'
     + '<div class="levelList">'
     +   LEVELS.map(function(lv){
           return '<button type="button" class="levelBtn'+(state.user && state.user.level === lv ? ' on' : '')+'" data-level="'+lv+'">'
             + '<b>'+lv+'</b><span>'+esc(LEVEL_NOTES[lv])+'</span></button>';
         }).join('')
-    + '</div></section>';
+    + '</div>'
+    + '<button type="button" class="ghost" id="levelBackBtn" style="margin-top:14px">選ばずに戻る</button>'
+    + '</section>';
+  $('levelBackBtn').onclick = function(){ state.pickLevel = false; after(); };
   el.querySelectorAll('[data-level]').forEach(function(btn){
     btn.onclick = async function(){
       btn.disabled = true;
@@ -1202,8 +1205,8 @@ async function renderInputTab(){
   var el = $('tabContent');
   var editing = state.editingRecord;
 
-  // 宿題の記録：まだレベルを選んでいなければ（または選び直すとき）先にレベルを選ぶ
-  if(HW.ready && (state.pickLevel || !state.user.level)){
+  // レベル選択は、自分から「レベル」ボタンを押したときだけ出す（宿題は任意なので最初に強制しない）
+  if(HW.ready && state.pickLevel){
     return renderLevelPicker(el, function(){ state.pickLevel = false; renderInputTab(); });
   }
   if(editing && state.inputMenu === null) state.inputMenu = editing.menu || 'other';
@@ -1224,20 +1227,21 @@ async function renderInputTab(){
   var menuBar = '';
   if(HW.ready){
     var wk = currentHwWeek();
-    var tg = wk && wk.targets ? wk.targets[state.user.level] : null;
+    var tg = (wk && wk.targets && state.user.level) ? wk.targets[state.user.level] : null;
     var hint = !tg ? ''
       : menu === 'long' ? '今週のロング走の目安：'+tg.longMin+'分'
       : menu === 'easy' ? '今週のゆっくりランの目安：'+tg.easyMin+'分×'+tg.easy+'回'
       : menu === 'strength' ? '今週の補強の目安：'+tg.strength+'回（各10分）'
       : '';
     menuBar = '<div class="menuPick">'
-      + '<div class="menuPickHead"><span>今日やったのは？</span><button type="button" class="ghost tiny" id="changeLevelBtn">'+esc(state.user.level)+' ›</button></div>'
+      + '<div class="menuPickHead"><span>今日やったのは？</span><button type="button" class="ghost tiny" id="changeLevelBtn">'+(state.user.level ? esc(state.user.level)+' ›' : '宿題のレベル ›')+'</button></div>'
       + '<div class="menuBtns">'
       +   (editing ? ['long','easy','other'] : ['long','easy','strength','other']).map(function(k){
             return '<button type="button" class="menuBtn'+(menu===k?' on':'')+'" data-menu="'+k+'">'+MENU_LABELS[k]+'</button>';
           }).join('')
       + '</div>'
-      + (hint ? '<div class="menuHint">'+esc(hint)+'</div>' : '<div class="menuNote">宿題の記録に使います。選ばなくても記録できます。</div>')
+      + (hint ? '<div class="menuHint">'+esc(hint)+'</div>'
+              : '<div class="menuNote">選ばなくても記録できます。'+(state.user.level ? '' : '宿題のレベルを選ぶと、自分の宿題の進み具合がホームに出ます（任意）。')+'</div>')
       + '</div>';
   }
 
