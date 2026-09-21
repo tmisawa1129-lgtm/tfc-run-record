@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260921-3 （公開中の版を確認するための目印） -->
+<!-- build: 20260921-4 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -466,7 +466,7 @@ var app = $('app');
 var state = {
   user: null,        // {id, name, role}
   tab: 'input',       // 'input' | 'list' | 'overview' | 'guide'
-  guideSite: 'guide1', // ガイドタブで表示中の外部サイト
+  guideSite: null,   // ガイドタブで開いているもの（nullなら先頭＝宿題）
   viewMember: null,   // みんなの状況で開いている人（null＝一覧表示）
   raceConfig: null,
   membersCache: [],
