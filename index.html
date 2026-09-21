@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260921-8 （公開中の版を確認するための目印） -->
+<!-- build: 20260922-1 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -89,6 +89,26 @@
   .colDate{flex:0 0 44px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
   .colTitle{flex:1 1 auto;font-size:14px;font-weight:600;line-height:1.5}
   .colArrow{flex:0 0 auto;color:var(--muted);font-size:18px}
+  /* ホーム */
+  .home{display:flex;flex-direction:column;gap:12px}
+  .homeCard{position:relative;display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 40px 16px 18px;color:var(--text);font:inherit;cursor:pointer}
+  .homeCard.static{cursor:default;padding-right:18px}
+  .homeCard:not(.static):hover{border-color:var(--line2)}
+  .hcLabel{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+  .hcTitle{font-size:15.5px;font-weight:700;margin-top:6px;line-height:1.5}
+  .hcTitle b{color:var(--accent)}
+  .hcSub{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6}
+  .hcBig{font-size:26px;font-weight:800;margin-top:4px}
+  .hcBig small{font-size:13px;color:var(--muted);font-weight:600}
+  .hcSubInline{font-size:14px;color:var(--muted);font-weight:600}
+  .hcArrow{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:22px;color:var(--muted)}
+  .newBadge{font-size:10px;font-weight:800;letter-spacing:.06em;color:#180d08;background:var(--accent);border-radius:99px;padding:2px 7px}
+  /* 外部サイトへのリンク */
+  .linkCard{padding:6px 0;margin-bottom:26px}
+  .linkCardTitle{font-size:11.5px;font-weight:700;color:var(--muted);padding:10px 18px 4px}
+  .extLink{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-top:1px solid var(--line);color:var(--text);text-decoration:none;font-size:14px;font-weight:600}
+  .extLink:first-of-type{border-top:none}
+  .extArrow{color:var(--muted)}
   .colText{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.85;margin-top:14px;color:var(--text)}
   .colText a{word-break:break-all}
   .colFigLabel{font-size:12px;color:var(--muted);font-weight:700;margin:18px 0 6px}
@@ -285,6 +305,22 @@ function todayStr(){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 function currentMonthKey(){ return todayStr().slice(0, 7); }
+// 今週の月曜日（YYYY-MM-DD）。宿題の週と同じく月曜はじまりで数える
+function weekStartStr(){
+  var d = new Date(); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// 「2026-09-21」でも「20260921」でも、今日から何日前かを返す
+function daysAgo(dateStr){
+  var s = String(dateStr).replace(/-/g,'');
+  var d = new Date(Number(s.slice(0,4)), Number(s.slice(4,6))-1, Number(s.slice(6,8)));
+  var now = new Date(); now.setHours(0,0,0,0);
+  return Math.round((now - d) / 86400000);
+}
+// 配信から7日以内なら「NEW」を付ける
+function newBadge(dateStr){ var n = daysAgo(dateStr); return (n >= 0 && n <= 6) ? '<span class="newBadge">NEW</span>' : ''; }
+var WEEKDAYS = ['日','月','火','水','木','金','土'];
 function parseDurationToSec(s){
   var parts = String(s||'').trim().split(':').map(Number);
   if(!parts.length || parts.some(isNaN)) return null;
@@ -379,14 +415,18 @@ var LocalBackend = (function(){
     async teamOverview(){
       var s = load();
       var thisMonth = currentMonthKey();
+      var weekStart = weekStartStr();
       return s.members.filter(function(m){ return m.role === 'member'; }).map(function(m){
         var recs = s.records.filter(function(r){ return r.member_id === m.id; })
           .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
         var monthRecs = recs.filter(function(r){ return r.date.slice(0,7) === thisMonth; });
+        var weekRecs = recs.filter(function(r){ return r.date >= weekStart; });
         return {
           id: m.id, name: m.name,
           lastDate: recs.length ? recs[0].date : null,
           thisMonthKm: monthRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          weekKm: weekRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          weekRuns: weekRecs.length,
           lastMemo: recs.length ? recs[0].memo : '',
           lastRpe: recs.length ? recs[0].rpe : null
         };
@@ -444,6 +484,7 @@ var SupabaseBackend = (function(){
     },
     async teamOverview(){
       var thisMonth = currentMonthKey();
+      var weekStart = weekStartStr();
       var mr = await client().from('members').select('id,name').eq('role','member').order('name');
       if(mr.error) throw mr.error;
       var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe').is('deleted_at', null).order('date', {ascending:false});
@@ -455,10 +496,13 @@ var SupabaseBackend = (function(){
       return mr.data.map(function(m){
         var recs = byMember[m.id] || [];
         var monthRecs = recs.filter(function(r){ return r.date.slice(0,7) === thisMonth; });
+        var weekRecs = recs.filter(function(r){ return r.date >= weekStart; });
         return {
           id: m.id, name: m.name,
           lastDate: recs.length ? recs[0].date : null,
           thisMonthKm: monthRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          weekKm: weekRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
+          weekRuns: weekRecs.length,
           lastMemo: recs.length ? recs[0].memo : '',
           lastRpe: recs.length ? recs[0].rpe : null
         };
@@ -477,7 +521,7 @@ var app = $('app');
 
 var state = {
   user: null,        // {id, name, role}
-  tab: 'input',       // 'input' | 'list' | 'overview' | 'guide'
+  tab: 'home',        // 'home' | 'input' | 'list' | 'overview' | 'guide'
   guideSite: null,   // ガイドタブで開いているもの（nullなら先頭＝宿題）
   viewMember: null,   // みんなの状況で開いている人（null＝一覧表示）
   raceConfig: null,
@@ -501,7 +545,7 @@ var EXTERNAL_LINKS = {
 var HOMEWORK = {
   enabled: true,
   weeks: [
-    { label: '9/21〜', range: '9/21（月）〜9/27（日）', theme: 'ゆっくり長く', img: 'images/homework/week1.jpg' }
+    { label: '9/21〜', range: '9/21（月）〜9/27（日）', theme: 'ゆっくり長く', published: '2026-09-20', img: 'images/homework/week1.jpg' }
   ],
   // 最初に配られた説明資料（レベルの選び方・守るルール）。全3ページ
   guide: {
@@ -510,6 +554,16 @@ var HOMEWORK = {
     pages: ['images/homework/guide1.jpg', 'images/homework/guide2.jpg', 'images/homework/guide3.jpg']
   }
 };
+
+/* ------------ 練習会の日程（TFCのカレンダーより） ------------ */
+var PRACTICES = [
+  { date: '2026-10-03', time: '8:00', place: '代々木公園' },
+  { date: '2026-10-17', time: '8:00', place: '代々木公園' },
+  { date: '2026-11-01', time: '8:00', place: '駒沢公園', note: '30km走 1回目' },
+  { date: '2026-11-14', time: '8:00', place: '代々木公園' },
+  { date: '2026-12-05', time: '8:00', place: '代々木公園' },
+  { date: '2026-12-20', time: '8:00', place: '駒沢公園', note: '30km走 2回目' }
+];
 
 function loadIdentity(){
   try{
@@ -533,7 +587,7 @@ if(DEMO_MODE){
 }
 
 /* ---------------- 起動 ---------------- */
-function defaultTabFor(){ return 'input'; }
+function defaultTabFor(){ return 'home'; }
 
 async function ensureRaceConfig(){
   if(!state.raceConfig){
@@ -585,7 +639,7 @@ async function renderAuth(){
   }).join('');
 
   // 未ログインでは自分の記録は開けないので、閲覧できるタブに寄せる
-  if(state.tab !== 'overview' && state.tab !== 'guide') state.tab = 'overview';
+  if(['home','overview','guide'].indexOf(state.tab) < 0) state.tab = 'home';
 
   app.innerHTML =
     '<header><div class="wrap">'
@@ -604,8 +658,9 @@ async function renderAuth(){
     + '</div></header>'
     + '<div class="wrap">'
     +   '<div class="tabbar">'
-    +     '<button class="tab" data-tab="overview">みんなの状況</button>'
-    +     '<button class="tab" data-tab="guide">ガイド</button>'
+    +     '<button class="tab" data-tab="home">ホーム</button>'
+    +     '<button class="tab" data-tab="overview">みんな</button>'
+    +     '<button class="tab" data-tab="guide">資料</button>'
     +   '</div>'
     +   '<div id="tabContent"></div>'
     + '</div>';
@@ -634,42 +689,40 @@ function wireTabBar(){
       state.editingRecord = null;
       state.viewMember = null;
       render();
+      window.scrollTo(0, 0);
     };
   });
 }
 
 function renderCurrentTab(){
-  if(state.tab === 'list') renderListTab();
+  if(state.tab === 'home') renderHomeTab();
+  else if(state.tab === 'list') renderListTab();
   else if(state.tab === 'overview') renderOverviewTab();
   else if(state.tab === 'guide') renderGuideTab();
   else renderInputTab();
 }
 
-/* ---------------- ガイドタブ（外部サイト＋大会設定） ---------------- */
+/* ---------------- 資料タブ（宿題・コラム＋外部サイトへのリンク） ---------------- */
+function externalLinksHtml(){
+  return '<div class="card linkCard">'
+    + '<div class="linkCardTitle">外部の資料</div>'
+    + Object.keys(EXTERNAL_LINKS).map(function(k){
+        var l = EXTERNAL_LINKS[k];
+        return '<a class="extLink" href="'+esc(l.url)+'" target="_blank" rel="noopener"><span>'+esc(l.label)+'</span><span class="extArrow">↗</span></a>';
+      }).join('')
+    + '</div>';
+}
+
 async function renderGuideTab(el){
   el = el || $('tabContent');
-  var keys = ['guide1','guide2','official'];
-  // 毎週見るものなので宿題を先頭に置く
-  if(typeof COLUMNS !== 'undefined' && COLUMNS.length) keys.unshift('columns');
-  if(HOMEWORK.enabled && HOMEWORK.weeks.length) keys.unshift('homework');
+  var keys = [];
+  if(HOMEWORK.enabled && HOMEWORK.weeks.length) keys.push('homework');
+  if(typeof COLUMNS !== 'undefined' && COLUMNS.length) keys.push('columns');
   if(keys.indexOf(state.guideSite) < 0) state.guideSite = keys[0];
-  var label = function(k){ return k === 'homework' ? '宿題' : k === 'columns' ? 'コラム' : EXTERNAL_LINKS[k].short; };
+  var label = function(k){ return k === 'homework' ? '宿題' : 'コラム'; };
 
-  var body;
-  if(state.guideSite === 'homework'){
-    body = homeworkHtml();
-  } else if(state.guideSite === 'columns'){
-    body = columnsHtml();
-  } else {
-    var link = EXTERNAL_LINKS[state.guideSite];
-    body =
-        '<div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">'
-      +   '<iframe src="'+esc(link.url)+'" style="width:100%;height:70vh;min-height:420px;border:0;display:block"></iframe>'
-      + '</div>'
-      + '<p style="text-align:right;font-size:12px;margin-bottom:26px">'
-      +   '<a href="'+esc(link.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a>'
-      + '</p>';
-  }
+  var body = state.guideSite === 'homework' ? homeworkHtml()
+           : state.guideSite === 'columns' ? columnsHtml() : '';
 
   el.innerHTML =
       '<div class="monthTabs guideTabs">'
@@ -677,7 +730,8 @@ async function renderGuideTab(el){
           return '<button type="button" class="monthTab'+(k===state.guideSite?' active':'')+'" data-guide="'+k+'">'+esc(label(k))+'</button>';
         }).join('')
     + '</div>'
-    + body;
+    + body
+    + externalLinksHtml();
 
   el.querySelectorAll('[data-guide]').forEach(function(btn){
     btn.onclick = function(){
@@ -769,7 +823,7 @@ function columnsHtml(){
       + list.map(function(c){
           return '<button type="button" class="colItem" data-coldate="'+c.date+'">'
             + '<span class="colDate">'+fmt(c.date)+'</span>'
-            + '<span class="colTitle">'+esc(c.title)+'</span>'
+            + '<span class="colTitle">'+esc(c.title)+' '+newBadge(c.date)+'</span>'
             + '<span class="colArrow">›</span>'
             + '</button>';
         }).join('')
@@ -785,6 +839,96 @@ function columnsHtml(){
             + '<img src="'+esc(src)+'" alt="'+esc(open.title)+' 図'+(i+1)+'" loading="lazy" style="width:100%;border-radius:10px;display:block">';
         }).join('')
     + '</div>';
+}
+
+/* ---------------- ホーム（開いたら最初に出る。今週の全体像） ---------------- */
+function fmtMDW(dateStr){
+  var s = String(dateStr).replace(/-/g,'');
+  var d = new Date(Number(s.slice(0,4)), Number(s.slice(4,6))-1, Number(s.slice(6,8)));
+  return (d.getMonth()+1)+'/'+d.getDate()+'（'+WEEKDAYS[d.getDay()]+'）';
+}
+function nextPractice(){
+  var today = todayStr();
+  return PRACTICES.filter(function(p){ return p.date >= today; })[0] || null;
+}
+
+async function renderHomeTab(){
+  var el = $('tabContent');
+  var hw = (HOMEWORK.enabled && HOMEWORK.weeks.length) ? HOMEWORK.weeks[HOMEWORK.weeks.length-1] : null;
+  var col = (typeof COLUMNS !== 'undefined' && COLUMNS.length) ? COLUMNS[COLUMNS.length-1] : null;
+  var pr = nextPractice();
+
+  var html = '';
+
+  // 今週の宿題
+  if(hw){
+    html += '<button type="button" class="homeCard" data-go="homework">'
+      + '<div class="hcLabel">今週の宿題'+newBadge(hw.published || hw.range)+'</div>'
+      + '<div class="hcTitle">'+esc(hw.range)+'</div>'
+      + '<div class="hcSub">テーマ：「'+esc(hw.theme)+'」</div>'
+      + '<span class="hcArrow">›</span>'
+      + '</button>';
+  }
+  // 最新のコラム
+  if(col){
+    html += '<button type="button" class="homeCard" data-go="column" data-coldate="'+col.date+'">'
+      + '<div class="hcLabel">最新のコラム'+newBadge(col.date)+'</div>'
+      + '<div class="hcTitle">'+esc(col.title)+'</div>'
+      + '<div class="hcSub">'+fmtMDW(col.date)+' 配信</div>'
+      + '<span class="hcArrow">›</span>'
+      + '</button>';
+  }
+  // あなたの今週
+  html += '<div class="homeCard static" id="homeMine">'
+    + '<div class="hcLabel">あなたの今週</div>'
+    + (state.user
+        ? '<div class="hcBig" id="homeMineKm">…</div><button type="button" id="homeRecordBtn" style="margin-top:10px">記録する</button>'
+        : '<div class="hcSub">上の「あなたは？」で名前を選ぶと、自分の記録ができます。</div>')
+    + '</div>';
+  // 次の練習会
+  if(pr){
+    var left = -daysAgo(pr.date);
+    html += '<div class="homeCard static">'
+      + '<div class="hcLabel">次の練習会</div>'
+      + '<div class="hcTitle">'+fmtMDW(pr.date)+' '+esc(pr.time)+'　'+esc(pr.place)+'</div>'
+      + '<div class="hcSub">'+(left === 0 ? '今日です！' : 'あと'+left+'日')+(pr.note ? '　／　'+esc(pr.note) : '')+'</div>'
+      + '</div>';
+  }
+  // みんなの今週
+  html += '<button type="button" class="homeCard" data-go="overview">'
+    + '<div class="hcLabel">みんなの今週</div>'
+    + '<div class="hcTitle" id="homeTeam">…</div>'
+    + '<span class="hcArrow">›</span>'
+    + '</button>';
+
+  el.innerHTML = '<section class="home">' + html + externalLinksHtml() + '</section>';
+
+  el.querySelectorAll('[data-go]').forEach(function(btn){
+    btn.onclick = function(){
+      var go = btn.dataset.go;
+      if(go === 'homework'){ state.tab = 'guide'; state.guideSite = 'homework'; state.homeworkWeek = null; }
+      else if(go === 'column'){ state.tab = 'guide'; state.guideSite = 'columns'; state.columnDate = btn.dataset.coldate; }
+      else if(go === 'overview'){ state.tab = 'overview'; state.viewMember = null; }
+      render();
+      window.scrollTo(0, 0);
+    };
+  });
+  if($('homeRecordBtn')){
+    $('homeRecordBtn').onclick = function(){ state.tab = 'input'; state.editingRecord = null; render(); window.scrollTo(0,0); };
+  }
+
+  // 自分の今週（ログイン時のみ）
+  if(state.user){
+    var ws = weekStartStr();
+    var mine = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
+    var wk = mine.filter(function(r){ return r.date >= ws; });
+    var km = wk.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0);
+    if($('homeMineKm')) $('homeMineKm').innerHTML = km.toFixed(1)+'<small> km</small>　<span class="hcSubInline">'+wk.length+'本</span>';
+  }
+  // みんなの今週
+  var ov = await Backend.teamOverview().catch(function(){ return []; });
+  var ran = ov.filter(function(m){ return m.weekRuns > 0; }).length;
+  if($('homeTeam')) $('homeTeam').innerHTML = ov.length ? (ov.length+'人中 <b>'+ran+'人</b> が走りました') : 'まだメンバーがいません';
 }
 
 function showMsg(id, kind, text){
@@ -810,10 +954,11 @@ async function renderMain(){
     + '</div></header>'
     + '<div class="wrap">'
     +   '<div class="tabbar">'
-    +     '<button class="tab" data-tab="input">記録を入力</button>'
-    +     '<button class="tab" data-tab="list">記録一覧</button>'
-    +     '<button class="tab" data-tab="overview">みんなの状況</button>'
-    +     '<button class="tab" data-tab="guide">ガイド</button>'
+    +     '<button class="tab" data-tab="home">ホーム</button>'
+    +     '<button class="tab" data-tab="input">記録する</button>'
+    +     '<button class="tab" data-tab="list">自分の記録</button>'
+    +     '<button class="tab" data-tab="overview">みんな</button>'
+    +     '<button class="tab" data-tab="guide">資料</button>'
     +   '</div>'
     +   '<div id="tabContent"></div>'
     + '</div>'
@@ -933,7 +1078,11 @@ async function renderInputTab(){
         return;
       }
       await Backend.addRecord(state.user.id, data);
-      showMsg('inputMsg','ok','記録を保存しました。');
+      var ws = weekStartStr();
+      var mine = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
+      var wk = mine.filter(function(r){ return r.date >= ws; });
+      var wkKm = wk.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0);
+      showMsg('inputMsg','ok','記録を保存しました。今週 '+wkKm.toFixed(1)+'km（'+wk.length+'本）です。');
       ['fDist','fDuration','fPace','fHr','fRpe','fMemo'].forEach(function(id){ $(id).value=''; });
       $('fDate').value = todayStr();
     }catch(e){
