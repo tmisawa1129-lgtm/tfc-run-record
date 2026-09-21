@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260922-5 （公開中の版を確認するための目印） -->
+<!-- build: 20260922-6 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -10,6 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="TFC記録">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%230d0a09'/%3E%3Ccircle cx='96' cy='96' r='58' fill='none' stroke='%23f0764a' stroke-width='10'/%3E%3Cpath d='M96 50v46l32 20' fill='none' stroke='%23f0764a' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
   :root{
@@ -120,6 +122,25 @@
   .hbArrow{margin-left:auto;font-size:12px;color:var(--accent)}
   .youBadge{font-size:10.5px;font-weight:800;color:#180d08;background:var(--accent);border-radius:99px;padding:1px 7px;margin-left:4px;vertical-align:1px}
   .memberRow.me{border-color:var(--accent-dim)}
+  /* 宿題の種類の選択（記録する） */
+  .menuPick{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:18px}
+  .menuPickHead{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;margin-bottom:10px}
+  .menuBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .menuBtn{background:var(--card2);border:1px solid var(--line2);color:var(--text);border-radius:12px;padding:12px 6px;font-size:14px;font-weight:700}
+  .menuBtn.on{background:var(--accent);border-color:var(--accent);color:#180d08}
+  .menuHint{font-size:12.5px;color:var(--accent);margin-top:10px;font-weight:700}
+  .menuTag{font-size:10px;font-weight:800;color:var(--accent);border:1px solid var(--accent-dim);border-radius:99px;padding:0 6px;margin-left:4px;white-space:nowrap}
+  .levelList{display:flex;flex-direction:column;gap:10px}
+  .levelBtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--card);border:1px solid var(--line2);color:var(--text);border-radius:14px;padding:16px}
+  .levelBtn b{font-size:16px}
+  .levelBtn span{font-size:12.5px;color:var(--muted)}
+  .levelBtn.on{border-color:var(--accent)}
+  .strengthList .sRow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+  .a2hs{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;background:var(--accent-soft);border:1px solid var(--accent-dim);border-radius:14px;padding:12px 14px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .a2hs b{color:var(--text)}
+  .menuNote{font-size:12px;color:var(--muted);margin-top:10px}
+  #changeLevelBtn{white-space:nowrap}
+  .hwLine{font-size:15px;font-weight:700;margin-top:4px}
   /* タブのアイコン */
   .tab .ico{width:16px;height:16px;vertical-align:-3px;margin-right:5px}
   /* 資料タブの別サイト（埋め込み） */
@@ -398,20 +419,40 @@ var LocalBackend = (function(){
     return {
       members: [],
       records: [],
+      strength: [],
       raceConfig: { race_name:'第74回 勝田全国マラソン', race_date:'2027-01-31', target_distance_km:42.195 }
     };
   }
   function save(store){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
 
   return {
+    async homeworkReady(){ return true; },
     async listMembers(){
       var s = load();
-      return s.members.map(function(m){ return {id:m.id, name:m.name, role:m.role}; });
+      return s.members.map(function(m){ return {id:m.id, name:m.name, role:m.role, level:m.level||null}; });
     },
     async getMember(id){
       var s = load();
       var m = s.members.find(function(x){ return x.id === id; });
-      return m ? {id:m.id, name:m.name, role:m.role} : null;
+      return m ? {id:m.id, name:m.name, role:m.role, level:m.level||null} : null;
+    },
+    async setLevel(id, level){
+      var s = load();
+      var m = s.members.find(function(x){ return x.id === id; });
+      if(m){ m.level = level; save(s); }
+    },
+    async addStrength(memberId, date){
+      var s = load(); s.strength = s.strength || [];
+      s.strength.push({id: uid(), member_id: memberId, date: date}); save(s);
+    },
+    async listStrength(fromDate){
+      var s = load();
+      return (s.strength || []).filter(function(x){ return !x.deleted_at && x.date >= fromDate; });
+    },
+    async deleteStrength(id){
+      var s = load();
+      (s.strength || []).forEach(function(x){ if(x.id === id) x.deleted_at = new Date().toISOString(); });
+      save(s);
     },
     async addRecord(memberId, data){
       var s = load();
@@ -458,6 +499,8 @@ var LocalBackend = (function(){
           thisMonthKm: monthRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
           weekKm: weekRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
           weekRuns: weekRecs.length,
+          weekRecords: weekRecs,
+          level: m.level || null,
           lastMemo: recs.length ? recs[0].memo : '',
           lastRpe: recs.length ? recs[0].rpe : null
         };
@@ -473,16 +516,43 @@ var SupabaseBackend = (function(){
     if(!sb) sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     return sb;
   }
+  // 宿題の記録用の列・表がデータベースにあるか（20260922_宿題の記録.sql を実行済みか）
+  var hwReady = false;
+  function memberCols(){ return hwReady ? 'id,name,role,level' : 'id,name,role'; }
   return {
+    async homeworkReady(){
+      var a = await client().from('records').select('menu').limit(1);
+      var b = await client().from('strength_logs').select('id').limit(1);
+      var c = await client().from('members').select('level').limit(1);
+      hwReady = !a.error && !b.error && !c.error;
+      return hwReady;
+    },
     async listMembers(){
-      var r = await client().from('members').select('id,name,role').order('name');
+      var r = await client().from('members').select(memberCols()).order('name');
       if(r.error) throw r.error;
       return r.data;
     },
     async getMember(id){
-      var r = await client().from('members').select('id,name,role').eq('id', id).single();
+      var r = await client().from('members').select(memberCols()).eq('id', id).single();
       if(r.error) return null;
       return r.data;
+    },
+    async setLevel(id, level){
+      var r = await client().from('members').update({level: level}).eq('id', id);
+      if(r.error) throw r.error;
+    },
+    async addStrength(memberId, date){
+      var r = await client().from('strength_logs').insert({member_id: memberId, date: date});
+      if(r.error) throw r.error;
+    },
+    async listStrength(fromDate){
+      var r = await client().from('strength_logs').select('id,member_id,date').is('deleted_at', null).gte('date', fromDate);
+      if(r.error) throw r.error;
+      return r.data;
+    },
+    async deleteStrength(id){
+      var r = await client().from('strength_logs').update({deleted_at: new Date().toISOString()}).eq('id', id);
+      if(r.error) throw r.error;
     },
     async addRecord(memberId, data){
       var body = Object.assign({member_id: memberId}, data);
@@ -516,9 +586,9 @@ var SupabaseBackend = (function(){
     async teamOverview(){
       var thisMonth = currentMonthKey();
       var weekStart = weekStartStr();
-      var mr = await client().from('members').select('id,name').eq('role','member').order('name');
+      var mr = await client().from('members').select(hwReady ? 'id,name,level' : 'id,name').eq('role','member').order('name');
       if(mr.error) throw mr.error;
-      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe').is('deleted_at', null).order('date', {ascending:false});
+      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe,duration_text'+(hwReady ? ',menu' : '')).is('deleted_at', null).order('date', {ascending:false});
       if(rr.error) throw rr.error;
       var byMember = {};
       rr.data.forEach(function(rec){
@@ -534,6 +604,8 @@ var SupabaseBackend = (function(){
           thisMonthKm: monthRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
           weekKm: weekRecs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0),
           weekRuns: weekRecs.length,
+          weekRecords: weekRecs,
+          level: m.level || null,
           lastMemo: recs.length ? recs[0].memo : '',
           lastRpe: recs.length ? recs[0].rpe : null
         };
@@ -558,6 +630,8 @@ var state = {
   raceConfig: null,
   membersCache: [],
   editingRecord: null, // 編集中の記録（nullなら新規入力）
+  inputMenu: null,     // 記録するで選んでいる宿題の種類（long / easy / strength / other）
+  pickLevel: false,    // trueのとき、記録するでレベルを選び直す画面を出す
   homeworkWeek: null,  // 宿題タブで開いている週（nullなら最新週、'guide'なら宿題ガイド）
   homeworkGuidePage: 0, // 宿題ガイドの何ページ目を開いているか
   columnDate: null     // コラムタブで開いているコラム（nullなら一覧）
@@ -579,7 +653,14 @@ var EXTERNAL_LINKS = {
 var HOMEWORK = {
   enabled: true,
   weeks: [
-    { label: '9/21〜', range: '9/21（月）〜9/27（日）', theme: 'ゆっくり長く', published: '2026-09-20', img: 'images/homework/week1.jpg' }
+    { label: '9/21〜', range: '9/21（月）〜9/27（日）', theme: 'ゆっくり長く', published: '2026-09-20', img: 'images/homework/week1.jpg',
+      start: '2026-09-21', end: '2026-09-27',
+      // レベル別の目標（ロング走は分、ゆっくりラン・補強は回数）。達成状況の判定に使う
+      targets: {
+        'ライト':       { longMin: 60,  easy: 1, easyMin: 20, strength: 2 },
+        'スタンダード': { longMin: 70,  easy: 2, easyMin: 30, strength: 2 },
+        'チャレンジ':   { longMin: 100, easy: 2, easyMin: 40, strength: 2 }
+      } }
   ],
   // 最初に配られた説明資料（レベルの選び方・守るルール）。全3ページ
   guide: {
@@ -588,6 +669,72 @@ var HOMEWORK = {
     pages: ['images/homework/guide1.jpg', 'images/homework/guide2.jpg', 'images/homework/guide3.jpg']
   }
 };
+
+/* ------------ 宿題の達成状況（どの宿題をやったか＋レベル） ------------
+   データベースの準備（20260922_宿題の記録.sql）ができるまでは HW.ready = false で、画面にも出さない */
+var HW = { ready: false };
+var LEVELS = ['ライト','スタンダード','チャレンジ'];
+var LEVEL_NOTES = { 'ライト':'30分続けて走るのがきつい', 'スタンダード':'60分走れる', 'チャレンジ':'90分以上走れる（始める前に齋藤さんへ申告）' };
+var MENU_LABELS = { long:'ロング走', easy:'ゆっくりラン', strength:'補強だけ', other:'それ以外' };
+
+// 今日が入っている宿題の週（なければ最新の週）
+function currentHwWeek(){
+  if(!HOMEWORK.weeks.length) return null;
+  var today = todayStr();
+  return HOMEWORK.weeks.filter(function(w){ return w.start && w.start <= today && today <= w.end; })[0]
+      || HOMEWORK.weeks[HOMEWORK.weeks.length - 1];
+}
+// その週の記録（menu付き）と補強の回数から、宿題の達成状況を出す
+function hwProgress(level, records, strengthCount, week){
+  if(!week || !week.targets || !level || !week.targets[level]) return null;
+  var tg = week.targets[level];
+  var inWeek = (records || []).filter(function(r){ return r.date >= week.start && r.date <= week.end; });
+  var longMin = 0;
+  inWeek.filter(function(r){ return r.menu === 'long'; }).forEach(function(r){
+    var sec = parseDurationToSec(r.duration_text);
+    if(sec) longMin = Math.max(longMin, Math.round(sec / 60));
+  });
+  var easy = inWeek.filter(function(r){ return r.menu === 'easy'; }).length;
+  return {
+    target: tg,
+    long: { val: longMin, goal: tg.longMin, done: longMin >= tg.longMin },
+    easy: { val: easy, goal: tg.easy, done: easy >= tg.easy },
+    strength: { val: strengthCount || 0, goal: tg.strength, done: (strengthCount || 0) >= tg.strength }
+  };
+}
+function hwProgressText(pg){
+  if(!pg) return '';
+  return 'ロング' + (pg.long.done ? ' ✓' : ' ' + pg.long.val + '/' + pg.long.goal + '分')
+    + '　ゆっくり ' + (pg.easy.done ? '✓' : pg.easy.val + '/' + pg.easy.goal)
+    + '　補強 ' + (pg.strength.done ? '✓' : pg.strength.val + '/' + pg.strength.goal);
+}
+
+// レベルを選ぶ画面（初めて記録するとき・変えたいとき）
+function renderLevelPicker(el, after){
+  el.innerHTML =
+      '<section><h2>あなたの宿題のレベルは？</h2>'
+    + '<p class="note" style="margin-bottom:14px">宿題は必須ではありません。自分のペースで使ってください。<br>基準は「歩かずに、会話できるペースで走り続けられる時間」です（宿題ガイドより）。あとから変えられます。</p>'
+    + '<div class="levelList">'
+    +   LEVELS.map(function(lv){
+          return '<button type="button" class="levelBtn'+(state.user && state.user.level === lv ? ' on' : '')+'" data-level="'+lv+'">'
+            + '<b>'+lv+'</b><span>'+esc(LEVEL_NOTES[lv])+'</span></button>';
+        }).join('')
+    + '</div></section>';
+  el.querySelectorAll('[data-level]').forEach(function(btn){
+    btn.onclick = async function(){
+      btn.disabled = true;
+      try{
+        await Backend.setLevel(state.user.id, btn.dataset.level);
+        state.user.level = btn.dataset.level;
+        saveIdentity(state.user);
+        after();
+      }catch(e){
+        alert('保存できませんでした：' + e.message);
+        btn.disabled = false;
+      }
+    };
+  });
+}
 
 /* ------------ 練習会の日程（TFCのカレンダーより） ------------ */
 var PRACTICES = [
@@ -672,6 +819,7 @@ function countdownHtml(rc){
 }
 
 async function boot(){
+  HW.ready = await Backend.homeworkReady().catch(function(){ return false; });
   var identity = loadIdentity();
   if(identity){
     var m = await Backend.getMember(identity.id).catch(function(){ return null; });
@@ -708,7 +856,7 @@ async function renderPickName(){
     btn.onclick = function(){
       var m = members.find(function(x){ return x.id === btn.dataset.pick; });
       if(!m) return;
-      state.user = {id:m.id, name:m.name, role:m.role};
+      state.user = {id:m.id, name:m.name, role:m.role, level:m.level || null};
       saveIdentity(state.user);
       render();
       window.scrollTo(0, 0);
@@ -738,6 +886,8 @@ function wireTabBar(){
     btn.onclick = function(){
       state.tab = btn.dataset.tab;
       state.editingRecord = null;
+      state.inputMenu = null;
+      state.pickLevel = false;
       state.viewMember = null;
       render();
       window.scrollTo(0, 0);
@@ -951,7 +1101,7 @@ async function renderHomeTab(){
       + '</button>';
   }
   var tiles = '<div class="tileGrid">'
-    + (hw ? tile('homework', 'clipboard', '宿題', esc(hw.theme), newBadge(hw.published || hw.range)) : '')
+    + (hw ? tile('homework', 'clipboard', '宿題', '<span id="homeHwSub">'+esc(hw.theme)+'</span>', newBadge(hw.published || hw.range)) : '')
     + (col ? tile('column', 'book', 'コラム', esc(col.title), newBadge(col.date)) : '')
     + tile('input', 'pencil', '記録する', state.user ? '今日の記録を入力' : '名前を選んで記録')
     + tile('overview', 'users', 'みんな', '…')
@@ -965,7 +1115,21 @@ async function renderHomeTab(){
       + '</div>'
     : '';
 
-  el.innerHTML = '<section class="home">' + band + tiles + practice + '</section>';
+  // iPhoneのSafariで開いていて、まだホーム画面に追加していない人に案内（×で消したら出さない）
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  var hideA2hs = false; try{ hideA2hs = localStorage.getItem('tfc_hide_a2hs') === '1'; }catch(e){}
+  var a2hs = (isIOS && !standalone && !hideA2hs)
+    ? '<div class="a2hs"><div><b>ホーム画面に追加すると、アプリのように開けます</b><br>'
+      + 'Safariの下の共有ボタン（□に↑）→「ホーム画面に追加」</div>'
+      + '<button type="button" class="ghost tiny" id="a2hsClose" aria-label="閉じる">×</button></div>'
+    : '';
+
+  el.innerHTML = '<section class="home">' + band + tiles + practice + a2hs + '</section>';
+  if($('a2hsClose')) $('a2hsClose').onclick = function(){
+    try{ localStorage.setItem('tfc_hide_a2hs','1'); }catch(e){}
+    var box = el.querySelector('.a2hs'); if(box) box.remove();
+  };
 
   el.querySelectorAll('[data-go]').forEach(function(btn){
     btn.onclick = function(){
@@ -989,7 +1153,17 @@ async function renderHomeTab(){
   }
   var ov = await Backend.teamOverview().catch(function(){ return []; });
   var ran = ov.filter(function(m){ return m.weekRuns > 0; }).length;
-  if($('homeTeam')) $('homeTeam').textContent = ov.length ? '今週 '+ran+' / '+ov.length+'人が走った' : '—';
+  if($('homeTeam')) $('homeTeam').textContent = ran ? '今週 '+ran+'人が走りました' : 'みんなの記録を見る';
+
+  // 宿題タイル：自分の今週の達成状況
+  if(HW.ready && state.user && state.user.level && $('homeHwSub')){
+    var week = currentHwWeek();
+    var myRecs = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
+    var logs = week ? await Backend.listStrength(week.start).catch(function(){ return []; }) : [];
+    var sc = logs.filter(function(x){ return x.member_id === state.user.id && x.date <= week.end; }).length;
+    var pg = hwProgress(state.user.level, myRecs, sc, week);
+    if(pg) $('homeHwSub').textContent = hwProgressText(pg);
+  }
 }
 
 function showMsg(id, kind, text){
@@ -1027,27 +1201,65 @@ async function renderShell(){
 async function renderInputTab(){
   var el = $('tabContent');
   var editing = state.editingRecord;
+
+  // 宿題の記録：まだレベルを選んでいなければ（または選び直すとき）先にレベルを選ぶ
+  if(HW.ready && (state.pickLevel || !state.user.level)){
+    return renderLevelPicker(el, function(){ state.pickLevel = false; renderInputTab(); });
+  }
+  if(editing && state.inputMenu === null) state.inputMenu = editing.menu || 'other';
+  var menu = HW.ready ? state.inputMenu : null;
+
   var lastCadence = '', lastGct = '', lastRecord = null;
   if(!editing){
     var recent = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
     if(recent.length){
-      lastRecord = recent[0];
+      // 宿題の種類を選んでいれば、同じ種類の前回の記録をコピー元にする
+      lastRecord = (menu === 'long' || menu === 'easy') ? (recent.find(function(r){ return r.menu === menu; }) || recent[0]) : recent[0];
       lastCadence = lastRecord.cadence != null ? lastRecord.cadence : '';
       lastGct = lastRecord.ground_contact_ms != null ? lastRecord.ground_contact_ms : '';
     }
   }
 
+  // 「今日やったのは？」の選択と、今週の目標のひとこと
+  var menuBar = '';
+  if(HW.ready){
+    var wk = currentHwWeek();
+    var tg = wk && wk.targets ? wk.targets[state.user.level] : null;
+    var hint = !tg ? ''
+      : menu === 'long' ? '今週のロング走の目安：'+tg.longMin+'分'
+      : menu === 'easy' ? '今週のゆっくりランの目安：'+tg.easyMin+'分×'+tg.easy+'回'
+      : menu === 'strength' ? '今週の補強の目安：'+tg.strength+'回（各10分）'
+      : '';
+    menuBar = '<div class="menuPick">'
+      + '<div class="menuPickHead"><span>今日やったのは？</span><button type="button" class="ghost tiny" id="changeLevelBtn">'+esc(state.user.level)+' ›</button></div>'
+      + '<div class="menuBtns">'
+      +   (editing ? ['long','easy','other'] : ['long','easy','strength','other']).map(function(k){
+            return '<button type="button" class="menuBtn'+(menu===k?' on':'')+'" data-menu="'+k+'">'+MENU_LABELS[k]+'</button>';
+          }).join('')
+      + '</div>'
+      + (hint ? '<div class="menuHint">'+esc(hint)+'</div>' : '<div class="menuNote">宿題の記録に使います。選ばなくても記録できます。</div>')
+      + '</div>';
+  }
+
+  // 「補強だけ」：走っていないので、日付だけで記録する
+  if(HW.ready && menu === 'strength' && !editing){
+    return renderStrengthInput(el, menuBar);
+  }
+
+  var copyLabel = (lastRecord && lastRecord.menu && lastRecord.menu === menu && (menu === 'long' || menu === 'easy'))
+    ? '前回の'+MENU_LABELS[menu]+'をコピー' : '前回の記録をコピー';
   el.innerHTML =
     whoBarHtml()
+    + menuBar
     + '<section><h2>'+(editing ? '記録を編集' : '今日の記録')+'</h2>'
-    + (lastRecord ? '<button type="button" class="ghost tiny" id="copyLastBtn" style="margin-bottom:12px">前回の記録をコピー（'+esc(Number(lastRecord.distance_km).toFixed(2))+'km・'+esc(lastRecord.duration_text)+'）</button>' : '')
+    + (lastRecord ? '<button type="button" class="ghost tiny" id="copyLastBtn" style="margin-bottom:12px">'+copyLabel+'（'+esc(Number(lastRecord.distance_km).toFixed(2))+'km・'+esc(lastRecord.duration_text)+'）</button>' : '')
     + '<div class="card">'
     +   '<div class="grid g4">'
     +     '<div class="dateField"><label>日付</label><input type="date" id="fDate" value="'+esc(editing ? editing.date : todayStr())+'"></div>'
     +     '<div><label>距離 (km)</label><input type="number" inputmode="decimal" id="fDist" step="0.01" placeholder="10.00" value="'+(editing ? editing.distance_km : '')+'"></div>'
     +     '<div><label>時間</label><input type="text" id="fDuration" placeholder="52:30" value="'+esc(editing ? editing.duration_text : '')+'"></div>'
     +     '<div><label>ペース (分:秒/km)</label><input type="text" id="fPace" placeholder="5:15" value="'+esc(editing ? editing.pace_text : '')+'"></div>'
-    +     '<div><label>平均心拍 (bpm)</label><input type="number" inputmode="numeric" id="fHr" placeholder="145" value="'+(editing ? editing.heart_rate : '')+'"></div>'
+    +     '<div><label>平均心拍 (bpm'+(HW.ready ? '・任意' : '')+')</label><input type="number" inputmode="numeric" id="fHr" placeholder="145" value="'+(editing ? editing.heart_rate : '')+'"></div>'
     +     '<div><label>ピッチ (spm・任意)</label><input type="number" inputmode="numeric" id="fCadence" placeholder="172" value="'+(editing ? (editing.cadence!=null?editing.cadence:'') : lastCadence)+'"></div>'
     +     '<div><label>接地時間 (ms・任意)</label><input type="number" inputmode="numeric" id="fGct" placeholder="245" value="'+(editing ? (editing.ground_contact_ms!=null?editing.ground_contact_ms:'') : lastGct)+'"></div>'
     +     '<div><label>体感・RPE (任意)</label><select id="fRpe"><option value="">—</option>'
@@ -1063,6 +1275,7 @@ async function renderInputTab(){
     + '</div></section>';
 
   wireSwitchUser(el);
+  wireMenuBar(el);
   if(editing){
     $('cancelEditBtn').onclick = function(){
       state.editingRecord = null;
@@ -1099,8 +1312,10 @@ async function renderInputTab(){
     var duration = $('fDuration').value.trim();
     var pace = $('fPace').value.trim();
     var hr = parseInt($('fHr').value, 10);
-    if(!$('fDate').value || !dist || !duration || !pace || !hr){
-      showMsg('inputMsg','err','日付・距離・時間・ペース・平均心拍は必須です。');
+    // 心拍は、データベースの準備（20260922_宿題の記録.sql）ができたら任意にする
+    var hrRequired = !HW.ready;
+    if(!$('fDate').value || !dist || !duration || !pace || (hrRequired && !hr)){
+      showMsg('inputMsg','err', hrRequired ? '日付・距離・時間・ペース・平均心拍は必須です。' : '日付・距離・時間・ペースは必須です。');
       return;
     }
     var warnings = unusualValueWarnings({
@@ -1114,12 +1329,13 @@ async function renderInputTab(){
       distance_km: dist,
       duration_text: duration,
       pace_text: pace,
-      heart_rate: hr,
+      heart_rate: hr || null,
       cadence: $('fCadence').value ? parseInt($('fCadence').value,10) : null,
       ground_contact_ms: $('fGct').value ? parseInt($('fGct').value,10) : null,
       rpe: $('fRpe').value ? parseInt($('fRpe').value,10) : null,
       memo: $('fMemo').value.trim() || null
     };
+    if(HW.ready) data.menu = menu || 'other';   // 宿題の種類（選ばなかったら「それ以外」）
     $('submitBtn').disabled = true;
     try{
       if(editing){
@@ -1136,11 +1352,62 @@ async function renderInputTab(){
       showMsg('inputMsg','ok','記録を保存しました。今週 '+wkKm.toFixed(1)+'km（'+wk.length+'本）です。');
       ['fDist','fDuration','fPace','fHr','fRpe','fMemo'].forEach(function(id){ $(id).value=''; });
       $('fDate').value = todayStr();
+      state.inputMenu = null;
+      if(HW.ready) el.querySelectorAll('.menuBtn').forEach(function(b){ b.classList.remove('on'); });
     }catch(e){
       showMsg('inputMsg','err','保存に失敗しました：'+e.message);
     }
     if($('submitBtn')) $('submitBtn').disabled = false;
   };
+}
+
+function wireMenuBar(el){
+  el.querySelectorAll('[data-menu]').forEach(function(btn){
+    btn.onclick = function(){
+      state.inputMenu = (state.inputMenu === btn.dataset.menu) ? null : btn.dataset.menu;
+      renderInputTab();
+    };
+  });
+  if($('changeLevelBtn')) $('changeLevelBtn').onclick = function(){ state.pickLevel = true; renderInputTab(); };
+}
+
+async function renderStrengthInput(el, menuBar){
+  var ws = weekStartStr();
+  var logs = await Backend.listStrength(ws).catch(function(){ return []; });
+  var mine = logs.filter(function(x){ return x.member_id === state.user.id; })
+                 .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+  el.innerHTML = whoBarHtml() + menuBar
+    + '<section><div class="card">'
+    +   '<div class="dateField" style="max-width:260px"><label>日付</label><input type="date" id="sDate" value="'+todayStr()+'"></div>'
+    +   '<button id="strengthBtn" style="margin-top:12px">補強をやった</button>'
+    +   '<div class="msg" id="strengthMsg"></div>'
+    +   '<div class="strengthList">'
+    +     '<label style="margin-top:16px">今週の補強</label>'
+    +     (mine.length
+          ? mine.map(function(x){ return '<div class="sRow"><span>'+fmtMDW(x.date)+'</span><button type="button" class="ghost tiny" data-sdel="'+esc(x.id)+'">取り消す</button></div>'; }).join('')
+          : '<p class="note">まだありません</p>')
+    +   '</div>'
+    + '</div></section>';
+  wireSwitchUser(el);
+  wireMenuBar(el);
+  $('strengthBtn').onclick = async function(){
+    $('strengthBtn').disabled = true;
+    try{
+      await Backend.addStrength(state.user.id, $('sDate').value || todayStr());
+      await renderStrengthInput(el, menuBar);
+      showMsg('strengthMsg','ok','補強を記録しました。');
+    }catch(e){
+      showMsg('strengthMsg','err','保存に失敗しました：'+e.message);
+      if($('strengthBtn')) $('strengthBtn').disabled = false;
+    }
+  };
+  el.querySelectorAll('[data-sdel]').forEach(function(btn){
+    btn.onclick = async function(){
+      if(!confirm('この補強の記録を取り消しますか？')) return;
+      await Backend.deleteStrength(btn.dataset.sdel).catch(function(){});
+      renderStrengthInput(el, menuBar);
+    };
+  });
 }
 
 function recordsTableHtml(records, withActions){
@@ -1156,11 +1423,11 @@ function recordsTableHtml(records, withActions){
           + (r.memo ? (extra.length ? '<br>' : '') + '💬 ' + esc(r.memo) : '')
           || 'ピッチ・接地時間・メモの入力はありません。';
         return '<tr class="recRow">'
-          + '<td class="cDate">'+esc(r.date.slice(5).replace('-','/'))+'</td>'
+          + '<td class="cDate">'+esc(r.date.slice(5).replace('-','/'))+(r.menu === 'long' || r.menu === 'easy' ? ' <span class="menuTag">'+MENU_LABELS[r.menu]+'</span>' : '')+'</td>'
           + '<td class="num cDist">'+Number(r.distance_km).toFixed(2)+'<span class="unit"> km</span></td>'
           + '<td class="num cSub" data-label="時間">'+esc(r.duration_text)+'</td>'
           + '<td class="num cSub" data-label="ペース">'+esc(r.pace_text)+'</td>'
-          + '<td class="num cSub" data-label="心拍">'+esc(r.heart_rate)+'</td>'
+          + '<td class="num cSub" data-label="心拍">'+(r.heart_rate != null ? esc(r.heart_rate) : '—')+'</td>'
           + '<td class="num cSub" data-label="RPE">'+(r.rpe||'—')+'</td>'
           + '<td class="cActions">'
           +   '<button class="ghost tiny" data-rowdetail="'+esc(detailId)+'">詳細</button>'
@@ -1229,6 +1496,7 @@ function renderMonthlyRecords(containerEl, records, withActions, onChange){
           var rec = records.find(function(r){ return r.id === btn.dataset.edit; });
           if(!rec) return;
           state.editingRecord = rec;
+          state.inputMenu = rec.menu || 'other';
           state.tab = 'input';
           render();
         };
@@ -1317,6 +1585,22 @@ async function renderMemberDetail(el){
     + '<p class="note" style="margin-top:10px">記録 '+recs.length+'件'
     +   (recs.length ? ' ／ 最終記録 '+relDateLabel(recs[0].date) : '')
     + '</p>';
+
+  // 自分のページだけ：今週の宿題の進み具合（自分にだけ見える）
+  if(isMe && HW.ready && state.user.level){
+    var week = currentHwWeek();
+    var logs = week ? await Backend.listStrength(week.start).catch(function(){ return []; }) : [];
+    var sc = logs.filter(function(x){ return x.member_id === target.id && x.date <= week.end; }).length;
+    var pg = hwProgress(state.user.level, recs, sc, week);
+    if(pg){
+      var box = document.createElement('div');
+      box.className = 'card';
+      box.innerHTML = '<label>今週の宿題（'+esc(state.user.level)+'）</label>'
+        + '<div class="hwLine">'+esc(hwProgressText(pg))+'</div>'
+        + '<p class="note" style="margin-top:6px">ロング走は目安の時間以上、ゆっくりランと補強は回数で数えています。</p>';
+      $('memberSummary').after(box);
+    }
+  }
 
   // 自分のページだけ編集・削除ボタンを付ける
   renderMonthlyRecords($('memberRecords'), recs, isMe, isMe ? function(){ renderMemberDetail(el); } : null);
