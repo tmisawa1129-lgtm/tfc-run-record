@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260921-7 （公開中の版を確認するための目印） -->
+<!-- build: 20260921-8 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -89,6 +89,9 @@
   .colDate{flex:0 0 44px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
   .colTitle{flex:1 1 auto;font-size:14px;font-weight:600;line-height:1.5}
   .colArrow{flex:0 0 auto;color:var(--muted);font-size:18px}
+  .colText{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.85;margin-top:14px;color:var(--text)}
+  .colText a{word-break:break-all}
+  .colFigLabel{font-size:12px;color:var(--muted);font-weight:700;margin:18px 0 6px}
   .card .note{color:var(--muted);font-size:12.5px}
 
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -260,6 +263,7 @@
 <div id="app"></div>
 
 <script src="config.js"></script>
+<script src="columns.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 (function(){
@@ -507,24 +511,6 @@ var HOMEWORK = {
   }
 };
 
-/* ------------ 先生のコラム（LINEで毎週配信） ------------
-   画像は images/columns/日付/1.jpg（配信本文）, 2.jpg〜（図）。
-   新しいコラムは末尾に1つ足す。画面では新しい順に並ぶ */
-var COLUMNS = [
-    { date: '20260707', title: '水分補給のタイミングと量', imgs: ['images/columns/20260707/1.jpg'] },
-    { date: '20260713', title: '暑熱順化', imgs: ['images/columns/20260713/1.jpg'] },
-    { date: '20260720', title: '手のひら冷却で深部体温を下げる', imgs: ['images/columns/20260720/1.jpg'] },
-    { date: '20260727', title: '朝食の重要性', imgs: ['images/columns/20260727/1.jpg'] },
-    { date: '20260803', title: 'タンパク質の摂り方', imgs: ['images/columns/20260803/1.jpg'] },
-    { date: '20260810', title: '腸内環境とランニング', imgs: ['images/columns/20260810/1.jpg'] },
-    { date: '20260817', title: 'オーバートレーニングのサイン', imgs: ['images/columns/20260817/1.jpg'] },
-    { date: '20260824', title: '足攣り対策・水分と電解質', imgs: ['images/columns/20260824/1.jpg'] },
-    { date: '20260831', title: '距離の増やし方', imgs: ['images/columns/20260831/1.jpg', 'images/columns/20260831/2.jpg', 'images/columns/20260831/3.jpg', 'images/columns/20260831/4.jpg', 'images/columns/20260831/5.jpg'] },
-    { date: '20260907', title: '爪とマメの対策', imgs: ['images/columns/20260907/1.jpg', 'images/columns/20260907/2.jpg', 'images/columns/20260907/3.jpg'] },
-    { date: '20260914', title: '歩いてもいい・ロング走は時間で区切る', imgs: ['images/columns/20260914/1.jpg', 'images/columns/20260914/2.jpg'] },
-    { date: '20260921', title: '涼しくなるとペースは勝手に上がる', imgs: ['images/columns/20260921/1.jpg', 'images/columns/20260921/2.jpg', 'images/columns/20260921/3.jpg'] }
-];
-
 function loadIdentity(){
   try{
     var s = localStorage.getItem('tfc_identity');
@@ -664,7 +650,7 @@ async function renderGuideTab(el){
   el = el || $('tabContent');
   var keys = ['guide1','guide2','official'];
   // 毎週見るものなので宿題を先頭に置く
-  if(COLUMNS.length) keys.unshift('columns');
+  if(typeof COLUMNS !== 'undefined' && COLUMNS.length) keys.unshift('columns');
   if(HOMEWORK.enabled && HOMEWORK.weeks.length) keys.unshift('homework');
   if(keys.indexOf(state.guideSite) < 0) state.guideSite = keys[0];
   var label = function(k){ return k === 'homework' ? '宿題' : k === 'columns' ? 'コラム' : EXTERNAL_LINKS[k].short; };
@@ -768,7 +754,12 @@ function homeworkHtml(){
     + '<div class="card" style="margin-bottom:26px">' + head + imgs + '</div>';
 }
 
-/* コラムタブの中身。一覧（新しい順）から選ぶと、配信本文と図の画像を表示する */
+/* コラムタブの中身。一覧（新しい順）から選ぶと、本文（文字）と図（画像）を表示する */
+function linkify(s){
+  return esc(s).replace(/https?:\/\/[^\s<]+/g, function(u){
+    return '<a href="'+u+'" target="_blank" rel="noopener">'+u+'</a>';
+  });
+}
 function columnsHtml(){
   var list = COLUMNS.slice().reverse();
   var fmt = function(d){ return Number(d.slice(4,6))+'/'+Number(d.slice(6,8)); };
@@ -788,8 +779,10 @@ function columnsHtml(){
     + '<div class="card" style="margin-bottom:26px">'
     +   '<h3>'+esc(open.title)+'</h3>'
     +   '<div class="sub" style="margin-top:2px">'+fmt(open.date)+' 配信</div>'
-    +   open.imgs.map(function(src, i){
-          return '<img src="'+esc(src)+'" alt="'+esc(open.title)+' '+(i+1)+'" loading="lazy" style="width:100%;border-radius:10px;display:block;margin-top:12px">';
+    +   '<div class="colText">'+linkify(open.text)+'</div>'
+    +   (open.figs || []).map(function(src, i){
+          return '<div class="colFigLabel">図'+(i+1)+'</div>'
+            + '<img src="'+esc(src)+'" alt="'+esc(open.title)+' 図'+(i+1)+'" loading="lazy" style="width:100%;border-radius:10px;display:block">';
         }).join('')
     + '</div>';
 }
