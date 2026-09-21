@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260922-3 （公開中の版を確認するための目印） -->
+<!-- build: 20260922-4 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -116,6 +116,10 @@
   .pickBtn:hover{border-color:var(--accent)}
   .whoBar{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-bottom:14px}
   .whoBar span{font-weight:700;color:var(--text)}
+  .hbMine.link{cursor:pointer;display:flex;align-items:baseline;gap:4px;flex-wrap:wrap}
+  .hbArrow{margin-left:auto;font-size:12px;color:var(--accent)}
+  .youBadge{font-size:10.5px;font-weight:800;color:#180d08;background:var(--accent);border-radius:99px;padding:1px 7px;margin-left:4px;vertical-align:1px}
+  .memberRow.me{border-color:var(--accent-dim)}
   /* タブのアイコン */
   .tab .ico{width:16px;height:16px;vertical-align:-3px;margin-right:5px}
   /* 資料タブの別サイト（説明＋開くボタン） */
@@ -542,7 +546,7 @@ var app = $('app');
 
 var state = {
   user: null,        // {id, name, role}
-  tab: 'home',        // 'home' | 'input' | 'list' | 'overview' | 'guide'
+  tab: 'home',        // 'home' | 'input' | 'overview' | 'guide'（自分の記録は「みんな」の中の自分のページ）
   guideSite: null,   // ガイドタブで開いているもの（nullなら先頭＝宿題）
   viewMember: null,   // みんなの状況で開いている人（null＝一覧表示）
   raceConfig: null,
@@ -735,10 +739,17 @@ function wireTabBar(){
   });
 }
 
+function openMyPage(){
+  state.tab = 'overview';
+  state.viewMember = state.user ? {id: state.user.id, name: state.user.name} : null;
+  render();
+  window.scrollTo(0, 0);
+}
+
 function renderCurrentTab(){
-  if(!state.user && (state.tab === 'input' || state.tab === 'list')) return renderPickName();
+  if(state.tab === 'list'){ state.tab = 'overview'; state.viewMember = state.user ? {id: state.user.id, name: state.user.name} : null; }
+  if(!state.user && state.tab === 'input') return renderPickName();
   if(state.tab === 'home') renderHomeTab();
-  else if(state.tab === 'list') renderListTab();
   else if(state.tab === 'overview') renderOverviewTab();
   else if(state.tab === 'guide') renderGuideTab();
   else renderInputTab();
@@ -906,7 +917,7 @@ async function renderHomeTab(){
   var band = '<div class="homeBand">'
     + '<div class="hbTop">勝田まで <b>'+(days != null && days > 0 ? days : '—')+'</b> 日</div>'
     + '<div class="hbRace">'+esc(rc.race_name || '')+'</div>'
-    + '<div class="hbMine" id="homeMine">'
+    + '<div class="hbMine'+(state.user ? ' link' : '')+'" id="homeMine">'
     +   (state.user ? 'あなたの今週　…' : '「記録する」で名前を選ぶと、ここに今週の距離が出ます')
     + '</div>'
     + '</div>';
@@ -949,11 +960,12 @@ async function renderHomeTab(){
   });
 
   if(state.user){
+    if($('homeMine')) $('homeMine').onclick = openMyPage;
     var ws = weekStartStr();
     var mine = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
     var wk = mine.filter(function(r){ return r.date >= ws; });
     var km = wk.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0);
-    if($('homeMine')) $('homeMine').innerHTML = 'あなたの今週　<b>'+km.toFixed(1)+'</b> km・'+wk.length+'本';
+    if($('homeMine')) $('homeMine').innerHTML = 'あなたの今週　<b>'+km.toFixed(1)+'</b> km・'+wk.length+'本<span class="hbArrow">自分の記録 ›</span>';
   }
   var ov = await Backend.teamOverview().catch(function(){ return []; });
   var ran = ov.filter(function(m){ return m.weekRuns > 0; }).length;
@@ -971,7 +983,7 @@ function showMsg(id, kind, text){
 async function renderShell(){
   var rc = await ensureRaceConfig();
   var tabs = [
-    ['home','home','ホーム'], ['input','pencil','記録する'], ['list','chart','自分の記録'],
+    ['home','home','ホーム'], ['input','pencil','記録する'],
     ['overview','users','みんな'], ['guide','book','資料']
   ];
   app.innerHTML =
@@ -1034,7 +1046,7 @@ async function renderInputTab(){
   if(editing){
     $('cancelEditBtn').onclick = function(){
       state.editingRecord = null;
-      renderInputTab();
+      openMyPage();   // 編集をやめたら、元いた自分の記録ページに戻る
     };
   }
 
@@ -1093,8 +1105,7 @@ async function renderInputTab(){
       if(editing){
         await Backend.updateRecord(editing.id, data);
         state.editingRecord = null;
-        state.tab = 'list';
-        render();
+        openMyPage();
         return;
       }
       await Backend.addRecord(state.user.id, data);
@@ -1207,25 +1218,6 @@ function renderMonthlyRecords(containerEl, records, withActions, onChange){
   draw();
 }
 
-async function renderListTab(){
-  var el = $('tabContent');
-  el.innerHTML = '<section><h2>自分の記録一覧</h2><div class="card"><p class="note">読み込み中…</p></div></section>';
-  var records = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
-
-  var thisMonth = currentMonthKey();
-  var sumMonth = records.filter(function(r){ return r.date.slice(0,7) === thisMonth; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
-
-  el.innerHTML =
-    whoBarHtml()
-    + '<section><h2>自分の記録一覧</h2>'
-    + '<div class="card"><label>今月</label><div style="font-size:22px;font-weight:800">'+sumMonth.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
-    + '<div class="card" id="myRecordsBlock"></div>'
-    + '</section>';
-
-  wireSwitchUser(el);
-  renderMonthlyRecords($('myRecordsBlock'), records, true, renderListTab);
-}
-
 function relDateLabel(dateStr){
   var d = Math.floor((new Date(todayStr()) - new Date(dateStr)) / 86400000);
   var md = esc(dateStr.slice(5).replace('-', '/'));
@@ -1247,24 +1239,27 @@ async function renderOverviewTab(el){
     return;
   }
 
-  // 記録がある人を先に、その中では最終記録が新しい順に並べる
+  // 自分を一番上に。そのあとは記録がある人を先に、最終記録が新しい順
+  var myId = state.user ? state.user.id : null;
   overview.sort(function(a, b){
+    if(a.id === myId) return -1;
+    if(b.id === myId) return 1;
     if(!!a.lastDate !== !!b.lastDate) return a.lastDate ? -1 : 1;
     if(a.lastDate && b.lastDate && a.lastDate !== b.lastDate) return a.lastDate < b.lastDate ? 1 : -1;
     return a.name.localeCompare(b.name, 'ja');
   });
 
   listEl.innerHTML = overview.map(function(m){
-    return '<button type="button" class="memberRow'+(m.lastDate ? '' : ' empty')+'"'
+    return '<button type="button" class="memberRow'+(m.lastDate ? '' : ' empty')+(m.id === myId ? ' me' : '')+'"'
       +   ' data-member="'+esc(m.id)+'" data-name="'+esc(m.name)+'">'
       + '<span class="mrMain">'
-      +   '<span class="mrName">'+esc(m.name)+'</span>'
+      +   '<span class="mrName">'+esc(m.name)+(m.id === myId ? ' <span class="youBadge">あなた</span>' : '')+'</span>'
       +   '<span class="mrLast">'+(m.lastDate ? relDateLabel(m.lastDate) : 'まだ記録なし')+'</span>'
       + '</span>'
       + '<span class="mrKm">'+m.thisMonthKm.toFixed(1)+'<small>km</small></span>'
       + '<span class="mrChev">›</span>'
       + '</button>';
-  }).join('') + '<p class="note" style="margin-top:12px">名前をタップすると、その人の記録が見られます（今月の距離を表示）。</p>';
+  }).join('') + '<p class="note" style="margin-top:12px">名前をタップすると、その人の記録が見られます（今月の距離を表示）。自分のページでは記録の編集・削除もできます。</p>';
 
   listEl.querySelectorAll('[data-member]').forEach(function(btn){
     btn.onclick = function(){
@@ -1276,9 +1271,10 @@ async function renderOverviewTab(el){
 
 async function renderMemberDetail(el){
   var target = state.viewMember;
+  var isMe = !!(state.user && state.user.id === target.id);
   el.innerHTML =
-      '<button type="button" class="ghost tiny" id="backToTeam" style="margin-bottom:14px">← みんなの状況</button>'
-    + '<section><h2>'+esc(target.name)+' の記録</h2>'
+      '<button type="button" class="ghost tiny" id="backToTeam" style="margin-bottom:14px">← みんな</button>'
+    + '<section><h2>'+(isMe ? 'あなた（'+esc(target.name)+'）の記録' : esc(target.name)+' の記録')+'</h2>'
     +   '<div class="card" id="memberSummary"><p class="note">読み込み中…</p></div>'
     +   '<div class="card" id="memberRecords"></div>'
     + '</section>';
@@ -1302,7 +1298,8 @@ async function renderMemberDetail(el){
     +   (recs.length ? ' ／ 最終記録 '+relDateLabel(recs[0].date) : '')
     + '</p>';
 
-  renderMonthlyRecords($('memberRecords'), recs, false);
+  // 自分のページだけ編集・削除ボタンを付ける
+  renderMonthlyRecords($('memberRecords'), recs, isMe, isMe ? function(){ renderMemberDetail(el); } : null);
 }
 
 /* ---------------- ルート描画 ---------------- */
