@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260918-2 （公開中の版を確認するための目印） -->
+<!-- build: 20260921-1 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -470,13 +470,40 @@ var state = {
   viewMember: null,   // みんなの状況で開いている人（null＝一覧表示）
   raceConfig: null,
   membersCache: [],
-  editingRecord: null // 編集中の記録（nullなら新規入力）
+  editingRecord: null, // 編集中の記録（nullなら新規入力）
+  homeworkWeek: null   // 宿題タブで開いている週（nullなら最新週）
 };
 
 var EXTERNAL_LINKS = {
   guide1: { label: 'TFC ナレッジベース', short: 'TFC ナレッジベース', url: 'https://marathontraining-guides.netlify.app/' },
   guide2: { label: '参加者ガイド', short: '参加者ガイド', url: 'https://tfc-participantguides.netlify.app/' },
   official: { label: '勝田マラソン公式', short: '勝田マラソン公式', url: 'https://katsutamarathon.jp/' }
+};
+
+/* ------------ 週ごとの宿題（先生の配布内容） ------------
+   HOMEWORK.enabled を true にすると、ガイドタブに「宿題」が出る。
+   先生の許可が取れるまでは false のまま（画面には出ない）。
+   毎週の更新は weeks の末尾に1つ足すだけ。 */
+var HOMEWORK = {
+  enabled: false,
+  weeks: [
+    {
+      label: '9/21〜',
+      range: '9/21（月）〜9/27（日）',
+      theme: 'ゆっくり長く',
+      levels: [
+        { name:'ライト',      note:'30分続けて走るのがきつい', long:'60分',  longNote:'走り5分＋歩き1分の繰り返し', easy:'20分×1回', easyNote:'歩きを混ぜてOK',        strength:'週2回（各10分）' },
+        { name:'スタンダード', note:'60分走れる',             long:'70分',  longNote:'会話できるペースで',        easy:'30分×2回', easyNote:'ラン同士は続けない',    strength:'週2回（各10分）' },
+        { name:'チャレンジ',   note:'90分以上走れる',          long:'100分', longNote:'最後まで会話できる範囲で',  easy:'40分×2回', easyNote:'1本は最後5分だけやや速く', strength:'週2回（各10分）' }
+      ],
+      points: [
+        'ペースの目安は「走りながら会話ができる」くらい',
+        'ロング走の翌日は必ずオフ',
+        '補強はランの後に。ロング走の前日は入れない',
+        '時間はあくまで目安。きつい日は短くしてOK'
+      ]
+    }
+  ]
 };
 
 function loadIdentity(){
@@ -617,21 +644,31 @@ function renderCurrentTab(){
 async function renderGuideTab(el){
   el = el || $('tabContent');
   var keys = ['guide1','guide2','official'];
+  if(HOMEWORK.enabled && HOMEWORK.weeks.length) keys.push('homework');
   if(keys.indexOf(state.guideSite) < 0) state.guideSite = 'guide1';
-  var link = EXTERNAL_LINKS[state.guideSite];
+  var label = function(k){ return k === 'homework' ? '宿題' : EXTERNAL_LINKS[k].short; };
+
+  var body;
+  if(state.guideSite === 'homework'){
+    body = homeworkHtml();
+  } else {
+    var link = EXTERNAL_LINKS[state.guideSite];
+    body =
+        '<div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">'
+      +   '<iframe src="'+esc(link.url)+'" style="width:100%;height:70vh;min-height:420px;border:0;display:block"></iframe>'
+      + '</div>'
+      + '<p style="text-align:right;font-size:12px;margin-bottom:26px">'
+      +   '<a href="'+esc(link.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a>'
+      + '</p>';
+  }
 
   el.innerHTML =
       '<div class="monthTabs">'
     +   keys.map(function(k){
-          return '<button type="button" class="monthTab'+(k===state.guideSite?' active':'')+'" data-guide="'+k+'">'+esc(EXTERNAL_LINKS[k].short)+'</button>';
+          return '<button type="button" class="monthTab'+(k===state.guideSite?' active':'')+'" data-guide="'+k+'">'+esc(label(k))+'</button>';
         }).join('')
     + '</div>'
-    + '<div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">'
-    +   '<iframe src="'+esc(link.url)+'" style="width:100%;height:70vh;min-height:420px;border:0;display:block"></iframe>'
-    + '</div>'
-    + '<p style="text-align:right;font-size:12px;margin-bottom:26px">'
-    +   '<a href="'+esc(link.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a>'
-    + '</p>';
+    + body;
 
   el.querySelectorAll('[data-guide]').forEach(function(btn){
     btn.onclick = function(){
@@ -639,6 +676,55 @@ async function renderGuideTab(el){
       renderGuideTab(el);
     };
   });
+
+  el.querySelectorAll('[data-hwweek]').forEach(function(btn){
+    btn.onclick = function(){
+      state.homeworkWeek = Number(btn.dataset.hwweek);
+      renderGuideTab(el);
+    };
+  });
+}
+
+/* 宿題タブの中身。週が複数あるときは週タブで切り替える */
+function homeworkHtml(){
+  var weeks = HOMEWORK.weeks;
+  var idx = state.homeworkWeek;
+  if(typeof idx !== 'number' || idx < 0 || idx >= weeks.length) idx = weeks.length - 1;
+  state.homeworkWeek = idx;
+  var w = weeks[idx];
+
+  var weekTabs = weeks.length > 1
+    ? '<div class="monthTabs">'
+      + weeks.map(function(x, i){
+          return '<button type="button" class="monthTab'+(i===idx?' active':'')+'" data-hwweek="'+i+'">'+esc(x.label)+'</button>';
+        }).join('')
+      + '</div>'
+    : '';
+
+  var rows = w.levels.map(function(lv){
+    return '<tr class="recRow">'
+      + '<td class="cDate"><b>'+esc(lv.name)+'</b><div class="sub">'+esc(lv.note)+'</div></td>'
+      + '<td class="cSub" data-label="ロング走（週1）">'+esc(lv.long)+'<div class="sub">'+esc(lv.longNote)+'</div></td>'
+      + '<td class="cSub" data-label="ゆっくりラン">'+esc(lv.easy)+'<div class="sub">'+esc(lv.easyNote)+'</div></td>'
+      + '<td class="cSub" data-label="補強">'+esc(lv.strength)+'</td>'
+      + '</tr>';
+  }).join('');
+
+  return weekTabs
+    + '<div class="card" style="margin-bottom:12px">'
+    +   '<h3>'+esc(w.range)+'</h3>'
+    +   '<div class="sub" style="margin-top:2px">テーマ：「'+esc(w.theme)+'」</div>'
+    +   '<table class="recTable" style="margin-top:10px">'
+    +     '<thead><tr><th>レベル</th><th>ロング走（週1）</th><th>ゆっくりラン</th><th>補強</th></tr></thead>'
+    +     '<tbody>'+rows+'</tbody>'
+    +   '</table>'
+    + '</div>'
+    + '<div class="card" style="margin-bottom:26px">'
+    +   '<h3>今週のポイント</h3>'
+    +   '<ul style="margin:8px 0 0;padding-left:20px;line-height:1.9;font-size:13.5px">'
+    +     w.points.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('')
+    +   '</ul>'
+    + '</div>';
 }
 
 function showMsg(id, kind, text){
