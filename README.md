@@ -88,6 +88,10 @@ python3 sync_tetsu.py --dry-run  # 追加せず内容だけ確認する
 ガイドタブの先頭に「宿題」を置き、先生が配布した資料の画像をそのまま表示する。
 公開済み（2026-09-21に本人が齋藤さんへ確認。宿題はLINEグループで全員に配られているものなのでOK）。
 
+宿題タブの中は、週ごとの配布資料に加えて「宿題ガイド」（最初に配られた説明資料・全3ページ）を
+タブで切り替えられる。ガイドの画像は `images/homework/guide1〜3.jpg`
+（原本 `3_先生からの資料/宿題/TFC週ごとの宿題ガイド.pdf` をページごとに画像化したもの）。
+
 毎週の更新は2つ。
 1. 配布画像を `images/homework/weekN.jpg` に置く（`sips -s format jpeg --resampleWidth 1200` 程度に縮めてから）
 2. `index.html` の `HOMEWORK.weeks` の末尾に1つ足す（`label` / `range` / `theme` / `img`）

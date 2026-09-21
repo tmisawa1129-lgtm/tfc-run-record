@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260921-4 （公開中の版を確認するための目印） -->
+<!-- build: 20260921-5 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -471,7 +471,8 @@ var state = {
   raceConfig: null,
   membersCache: [],
   editingRecord: null, // 編集中の記録（nullなら新規入力）
-  homeworkWeek: null   // 宿題タブで開いている週（nullなら最新週）
+  homeworkWeek: null,  // 宿題タブで開いている週（nullなら最新週、'guide'なら宿題ガイド）
+  homeworkGuidePage: 0 // 宿題ガイドの何ページ目を開いているか
 };
 
 var EXTERNAL_LINKS = {
@@ -488,7 +489,13 @@ var HOMEWORK = {
   enabled: true,
   weeks: [
     { label: '9/21〜', range: '9/21（月）〜9/27（日）', theme: 'ゆっくり長く', img: 'images/homework/week1.jpg' }
-  ]
+  ],
+  // 最初に配られた説明資料（レベルの選び方・守るルール）。全3ページ
+  guide: {
+    title: '宿題ガイド',
+    note: 'レベルの選び方と、守るルール',
+    pages: ['images/homework/guide1.jpg', 'images/homework/guide2.jpg', 'images/homework/guide3.jpg']
+  }
 };
 
 function loadIdentity(){
@@ -665,34 +672,62 @@ async function renderGuideTab(el){
 
   el.querySelectorAll('[data-hwweek]').forEach(function(btn){
     btn.onclick = function(){
-      state.homeworkWeek = Number(btn.dataset.hwweek);
+      var v = btn.dataset.hwweek;
+      state.homeworkWeek = (v === 'guide') ? 'guide' : Number(v);
+      state.homeworkGuidePage = 0;
+      renderGuideTab(el);
+    };
+  });
+
+  el.querySelectorAll('[data-hwpage]').forEach(function(btn){
+    btn.onclick = function(){
+      state.homeworkGuidePage = Number(btn.dataset.hwpage);
       renderGuideTab(el);
     };
   });
 }
 
-/* 宿題タブの中身。先生が配布した資料の画像をそのまま見せる（週が複数なら週タブで切り替え） */
+/* 宿題タブの中身。週ごとの配布資料と、最初の宿題ガイドを画像で見せる */
 function homeworkHtml(){
   var weeks = HOMEWORK.weeks;
-  var idx = state.homeworkWeek;
-  if(typeof idx !== 'number' || idx < 0 || idx >= weeks.length) idx = weeks.length - 1;
-  state.homeworkWeek = idx;
-  var w = weeks[idx];
+  var guide = HOMEWORK.guide;
+  var sel = state.homeworkWeek;
+  var isGuide = (sel === 'guide' && guide);
+  if(!isGuide && (typeof sel !== 'number' || sel < 0 || sel >= weeks.length)) sel = weeks.length - 1;
+  state.homeworkWeek = isGuide ? 'guide' : sel;
 
-  var weekTabs = weeks.length > 1
+  var tabItems = weeks.map(function(x, i){ return {key:String(i), label:x.label, on:(!isGuide && i===sel)}; });
+  if(guide) tabItems.push({key:'guide', label:guide.title, on:isGuide});
+  var tabs = tabItems.length > 1
     ? '<div class="monthTabs">'
-      + weeks.map(function(x, i){
-          return '<button type="button" class="monthTab'+(i===idx?' active':'')+'" data-hwweek="'+i+'">'+esc(x.label)+'</button>';
+      + tabItems.map(function(x){
+          return '<button type="button" class="monthTab'+(x.on?' active':'')+'" data-hwweek="'+x.key+'">'+esc(x.label)+'</button>';
         }).join('')
       + '</div>'
     : '';
 
-  return weekTabs
-    + '<div class="card" style="margin-bottom:26px">'
-    +   '<h3>'+esc(w.range)+'</h3>'
-    +   '<div class="sub" style="margin-top:2px">テーマ：「'+esc(w.theme)+'」</div>'
-    +   '<img src="'+esc(w.img)+'" alt="'+esc(w.range)+'の宿題" style="width:100%;border-radius:10px;display:block;margin-top:12px">'
-    + '</div>';
+  var head, imgs;
+  if(isGuide){
+    var page = state.homeworkGuidePage;
+    if(typeof page !== 'number' || page < 0 || page >= guide.pages.length) page = 0;
+    state.homeworkGuidePage = page;
+    head = '<h3>'+esc(guide.title)+'</h3>'
+      + '<div class="sub" style="margin-top:2px">'+esc(guide.note)+'</div>'
+      + '<div class="monthTabs" style="margin-top:12px;margin-bottom:0">'
+      +   guide.pages.map(function(_, i){
+            return '<button type="button" class="monthTab'+(i===page?' active':'')+'" data-hwpage="'+i+'">'+(i+1)+'ページ目</button>';
+          }).join('')
+      + '</div>';
+    imgs = '<img src="'+esc(guide.pages[page])+'" alt="宿題ガイド '+(page+1)+'ページ目" style="width:100%;border-radius:10px;display:block;margin-top:12px">';
+  } else {
+    var w = weeks[sel];
+    head = '<h3>'+esc(w.range)+'</h3>'
+      + '<div class="sub" style="margin-top:2px">テーマ：「'+esc(w.theme)+'」</div>';
+    imgs = '<img src="'+esc(w.img)+'" alt="'+esc(w.range)+'の宿題" style="width:100%;border-radius:10px;display:block;margin-top:12px">';
+  }
+
+  return tabs
+    + '<div class="card" style="margin-bottom:26px">' + head + imgs + '</div>';
 }
 
 function showMsg(id, kind, text){
