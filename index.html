@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260922-1 （公開中の版を確認するための目印） -->
+<!-- build: 20260922-2 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -89,20 +89,35 @@
   .colDate{flex:0 0 44px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
   .colTitle{flex:1 1 auto;font-size:14px;font-weight:600;line-height:1.5}
   .colArrow{flex:0 0 auto;color:var(--muted);font-size:18px}
-  /* ホーム */
+  /* ホーム（案C：上に帯、よく使う4つはタイル） */
   .home{display:flex;flex-direction:column;gap:12px}
-  .homeCard{position:relative;display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 40px 16px 18px;color:var(--text);font:inherit;cursor:pointer}
-  .homeCard.static{cursor:default;padding-right:18px}
-  .homeCard:not(.static):hover{border-color:var(--line2)}
-  .hcLabel{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.04em;display:flex;align-items:center;gap:8px}
-  .hcTitle{font-size:15.5px;font-weight:700;margin-top:6px;line-height:1.5}
-  .hcTitle b{color:var(--accent)}
-  .hcSub{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6}
-  .hcBig{font-size:26px;font-weight:800;margin-top:4px}
-  .hcBig small{font-size:13px;color:var(--muted);font-weight:600}
-  .hcSubInline{font-size:14px;color:var(--muted);font-weight:600}
-  .hcArrow{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:22px;color:var(--muted)}
+  .homeBand{background:var(--card2);border:1px solid var(--accent-dim);border-radius:16px;padding:18px 18px 16px}
+  .hbTop{font-size:13px;font-weight:700;color:var(--muted)}
+  .hbTop b{font-size:40px;font-weight:800;color:var(--accent);margin:0 4px;letter-spacing:-.02em;line-height:1}
+  .hbRace{font-size:12px;color:var(--muted);margin-top:4px}
+  .hbMine{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;font-weight:700;color:var(--text)}
+  .hbMine b{font-size:22px;color:var(--text)}
+  .tileGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-height:118px;color:var(--text);font:inherit;cursor:pointer}
+  .tile:hover{border-color:var(--line2)}
+  .tileIco{display:flex;width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent);align-items:center;justify-content:center;margin-bottom:6px}
+  .tileIco .ico{width:22px;height:22px}
+  .tileTitle{font-size:15px;font-weight:800;display:flex;align-items:center;gap:6px}
+  .tileSub{font-size:12px;color:var(--muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .homeRow{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+  .homeRow > .ico{width:26px;height:26px;color:var(--accent);flex:0 0 auto}
+  .hrLabel{font-size:11.5px;font-weight:700;color:var(--muted)}
+  .hrTitle{font-size:15px;font-weight:700;margin-top:2px}
+  .hrSub{font-size:12px;color:var(--muted)}
   .newBadge{font-size:10px;font-weight:800;letter-spacing:.06em;color:#180d08;background:var(--accent);border-radius:99px;padding:2px 7px}
+  /* 名前を選ぶ画面・誰として記録しているか */
+  .pickGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pickBtn{background:var(--card);border:1px solid var(--line2);color:var(--text);border-radius:14px;padding:18px 10px;font-size:15px;font-weight:700}
+  .pickBtn:hover{border-color:var(--accent)}
+  .whoBar{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-bottom:14px}
+  .whoBar span{font-weight:700;color:var(--text)}
+  /* タブのアイコン */
+  .tab .ico{width:16px;height:16px;vertical-align:-3px;margin-right:5px}
   /* 外部サイトへのリンク */
   .linkCard{padding:6px 0;margin-bottom:26px}
   .linkCardTitle{font-size:11.5px;font-weight:700;color:var(--muted);padding:10px 18px 4px}
@@ -223,6 +238,8 @@
       line-height:1.3;
     }
     .tabbar .tab.active{background:var(--accent-soft);border-bottom-color:transparent}
+    .tabbar .tab .ico{display:block;width:22px;height:22px;margin:0 auto 3px}
+    .tabbar .tab{padding:7px 2px 6px;font-size:10.5px}
     body{padding-bottom:calc(80px + env(safe-area-inset-bottom))}
 
     /* --- ヘッダーの「ようこそ／さん」はモバイルでは省いて、
@@ -580,6 +597,20 @@ function esc(s){
   });
 }
 
+/* ---------------- アイコン（線のSVG。外部フォントは使わない） ---------------- */
+var ICON_PATHS = {
+  home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  pencil: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  chart: '<path d="M4 20h16"/><path d="M7 20v-6"/><path d="M12 20V6"/><path d="M17 20v-9"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3.2 2.5-5.5 5.5-5.5s5.5 2.3 5.5 5.5"/><path d="M16 5.2a3 3 0 0 1 0 5.6"/><path d="M17.5 14.8c2 .6 3.2 2.5 3.2 5.2"/>',
+  book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8 7h8"/>',
+  clipboard: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="M9 18h3"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>'
+};
+function icon(name){
+  return '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICON_PATHS[name]||'')+'</svg>';
+}
+
 /* ---------------- デモバナー ---------------- */
 if(DEMO_MODE){
   $('demoBanner').innerHTML = '<div class="demo-banner">🔧 デモモードで動作中：データはこの端末のブラウザだけに保存されます。'
@@ -596,6 +627,15 @@ async function ensureRaceConfig(){
     });
   }
   return state.raceConfig;
+}
+
+function raceDaysLeft(rc){
+  if(!rc || !rc.race_date) return null;
+  var p = rc.race_date.split('-');
+  var race = new Date(p[0], p[1]-1, p[2]);
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((race - today)/86400000);
 }
 
 function countdownHtml(rc){
@@ -628,57 +668,51 @@ async function boot(){
   render();
 }
 
-/* ---------------- 未ログイン時の画面（みんなの状況・ガイド＋インライン ログイン） ---------------- */
-async function renderAuth(){
+/* ---------------- 名前を選ぶ画面（記録する／自分の記録を開いたとき、まだ選んでいなければ出る） ---------------- */
+async function renderPickName(){
+  var el = $('tabContent');
+  el.innerHTML = '<section><h2>あなたは？</h2><p class="note">読み込み中…</p></section>';
   var members = await Backend.listMembers().catch(function(){ return []; });
-  var rc = await ensureRaceConfig();
-  // 先生は記録を入力しないので名前の選択肢に出さない（みんなの状況はログインなしで見られる）
+  // 先生は記録を入力しないので選択肢に出さない
   members = members.filter(function(m){ return m.role !== 'coach'; });
-  var opts = members.map(function(m){
-    return '<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>';
-  }).join('');
-
-  // 未ログインでは自分の記録は開けないので、閲覧できるタブに寄せる
-  if(['home','overview','guide'].indexOf(state.tab) < 0) state.tab = 'home';
-
-  app.innerHTML =
-    '<header><div class="wrap">'
-    +   '<div class="eyebrow">THE FULL CREW — 記録ツール</div>'
-    +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
-    +   countdownHtml(rc)
-    +   '<div class="userbar">'
-    +     (members.length
-          ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-            + '<span>あなたは？</span>'
-            + '<select id="loginName" style="width:auto">'+opts+'</select>'
-            + '<button id="loginBtn" style="padding:8px 14px">この名前で入る</button>'
-            + '</div>'
-          : '<div>メンバーが登録されていません。管理者に連絡してください。</div>')
-    +   '</div>'
-    + '</div></header>'
-    + '<div class="wrap">'
-    +   '<div class="tabbar">'
-    +     '<button class="tab" data-tab="home">ホーム</button>'
-    +     '<button class="tab" data-tab="overview">みんな</button>'
-    +     '<button class="tab" data-tab="guide">資料</button>'
-    +   '</div>'
-    +   '<div id="tabContent"></div>'
-    + '</div>';
-
-  if(members.length){
-    $('loginBtn').onclick = function(){
-      var id = $('loginName').value;
-      var m = members.find(function(x){ return x.id === id; });
+  if(!members.length){
+    el.innerHTML = '<section><h2>あなたは？</h2><div class="card empty">メンバーが登録されていません。管理者に連絡してください。</div></section>';
+    return;
+  }
+  el.innerHTML =
+      '<section><h2>あなたは？</h2>'
+    + '<p class="note" style="margin-bottom:14px">自分の名前を選んでください。この端末では次から選ばなくて大丈夫です。</p>'
+    + '<div class="pickGrid">'
+    +   members.map(function(m){
+          return '<button type="button" class="pickBtn" data-pick="'+esc(m.id)+'">'+esc(m.name)+'</button>';
+        }).join('')
+    + '</div></section>';
+  el.querySelectorAll('[data-pick]').forEach(function(btn){
+    btn.onclick = function(){
+      var m = members.find(function(x){ return x.id === btn.dataset.pick; });
       if(!m) return;
       state.user = {id:m.id, name:m.name, role:m.role};
       saveIdentity(state.user);
-      state.tab = defaultTabFor();
+      render();
+      window.scrollTo(0, 0);
+    };
+  });
+}
+
+// 誰として記録しているかの表示と、切り替えボタン
+function whoBarHtml(){
+  return '<div class="whoBar"><span>'+esc(state.user.name)+' さん</span>'
+    + '<button type="button" class="ghost tiny" data-switchuser="1">別の人に切り替える</button></div>';
+}
+function wireSwitchUser(el){
+  el.querySelectorAll('[data-switchuser]').forEach(function(btn){
+    btn.onclick = function(){
+      clearIdentity();
+      state.user = null;
+      state.editingRecord = null;
       render();
     };
-  }
-
-  wireTabBar();
-  renderCurrentTab();
+  });
 }
 
 function wireTabBar(){
@@ -695,6 +729,7 @@ function wireTabBar(){
 }
 
 function renderCurrentTab(){
+  if(!state.user && (state.tab === 'input' || state.tab === 'list')) return renderPickName();
   if(state.tab === 'home') renderHomeTab();
   else if(state.tab === 'list') renderListTab();
   else if(state.tab === 'overview') renderOverviewTab();
@@ -854,81 +889,68 @@ function nextPractice(){
 
 async function renderHomeTab(){
   var el = $('tabContent');
+  var rc = await ensureRaceConfig();
+  var days = raceDaysLeft(rc);
   var hw = (HOMEWORK.enabled && HOMEWORK.weeks.length) ? HOMEWORK.weeks[HOMEWORK.weeks.length-1] : null;
   var col = (typeof COLUMNS !== 'undefined' && COLUMNS.length) ? COLUMNS[COLUMNS.length-1] : null;
   var pr = nextPractice();
 
-  var html = '';
-
-  // 今週の宿題
-  if(hw){
-    html += '<button type="button" class="homeCard" data-go="homework">'
-      + '<div class="hcLabel">今週の宿題'+newBadge(hw.published || hw.range)+'</div>'
-      + '<div class="hcTitle">'+esc(hw.range)+'</div>'
-      + '<div class="hcSub">テーマ：「'+esc(hw.theme)+'」</div>'
-      + '<span class="hcArrow">›</span>'
-      + '</button>';
-  }
-  // 最新のコラム
-  if(col){
-    html += '<button type="button" class="homeCard" data-go="column" data-coldate="'+col.date+'">'
-      + '<div class="hcLabel">最新のコラム'+newBadge(col.date)+'</div>'
-      + '<div class="hcTitle">'+esc(col.title)+'</div>'
-      + '<div class="hcSub">'+fmtMDW(col.date)+' 配信</div>'
-      + '<span class="hcArrow">›</span>'
-      + '</button>';
-  }
-  // あなたの今週
-  html += '<div class="homeCard static" id="homeMine">'
-    + '<div class="hcLabel">あなたの今週</div>'
-    + (state.user
-        ? '<div class="hcBig" id="homeMineKm">…</div><button type="button" id="homeRecordBtn" style="margin-top:10px">記録する</button>'
-        : '<div class="hcSub">上の「あなたは？」で名前を選ぶと、自分の記録ができます。</div>')
+  // 上の帯：残り日数と、自分の今週
+  var band = '<div class="homeBand">'
+    + '<div class="hbTop">勝田まで <b>'+(days != null && days > 0 ? days : '—')+'</b> 日</div>'
+    + '<div class="hbRace">'+esc(rc.race_name || '')+'</div>'
+    + '<div class="hbMine" id="homeMine">'
+    +   (state.user ? 'あなたの今週　…' : '「記録する」で名前を選ぶと、ここに今週の距離が出ます')
+    + '</div>'
     + '</div>';
-  // 次の練習会
-  if(pr){
-    var left = -daysAgo(pr.date);
-    html += '<div class="homeCard static">'
-      + '<div class="hcLabel">次の練習会</div>'
-      + '<div class="hcTitle">'+fmtMDW(pr.date)+' '+esc(pr.time)+'　'+esc(pr.place)+'</div>'
-      + '<div class="hcSub">'+(left === 0 ? '今日です！' : 'あと'+left+'日')+(pr.note ? '　／　'+esc(pr.note) : '')+'</div>'
-      + '</div>';
-  }
-  // みんなの今週
-  html += '<button type="button" class="homeCard" data-go="overview">'
-    + '<div class="hcLabel">みんなの今週</div>'
-    + '<div class="hcTitle" id="homeTeam">…</div>'
-    + '<span class="hcArrow">›</span>'
-    + '</button>';
 
-  el.innerHTML = '<section class="home">' + html + externalLinksHtml() + '</section>';
+  // よく使う4つのタイル
+  function tile(go, ic, title, sub, badge){
+    return '<button type="button" class="tile" data-go="'+go+'">'
+      + '<span class="tileIco">'+icon(ic)+'</span>'
+      + '<span class="tileTitle">'+title+(badge||'')+'</span>'
+      + '<span class="tileSub"'+(go==='overview'?' id="homeTeam"':'')+'>'+sub+'</span>'
+      + '</button>';
+  }
+  var tiles = '<div class="tileGrid">'
+    + (hw ? tile('homework', 'clipboard', '宿題', esc(hw.theme), newBadge(hw.published || hw.range)) : '')
+    + (col ? tile('column', 'book', 'コラム', esc(col.title), newBadge(col.date)) : '')
+    + tile('input', 'pencil', '記録する', state.user ? '今日の記録を入力' : '名前を選んで記録')
+    + tile('overview', 'users', 'みんな', '…')
+    + '</div>';
+
+  var practice = pr
+    ? '<div class="homeRow">'+icon('calendar')
+      + '<div><div class="hrLabel">次の練習会'+(pr.note ? '（'+esc(pr.note)+'）' : '')+'</div>'
+      + '<div class="hrTitle">'+fmtMDW(pr.date)+' '+esc(pr.time)+'　'+esc(pr.place)+'</div>'
+      + '<div class="hrSub">'+(-daysAgo(pr.date) === 0 ? '今日です' : 'あと'+(-daysAgo(pr.date))+'日')+'</div></div>'
+      + '</div>'
+    : '';
+
+  el.innerHTML = '<section class="home">' + band + tiles + practice + '</section>';
 
   el.querySelectorAll('[data-go]').forEach(function(btn){
     btn.onclick = function(){
       var go = btn.dataset.go;
       if(go === 'homework'){ state.tab = 'guide'; state.guideSite = 'homework'; state.homeworkWeek = null; }
-      else if(go === 'column'){ state.tab = 'guide'; state.guideSite = 'columns'; state.columnDate = btn.dataset.coldate; }
+      else if(go === 'column'){ state.tab = 'guide'; state.guideSite = 'columns'; state.columnDate = col ? col.date : null; }
+      else if(go === 'input'){ state.tab = 'input'; state.editingRecord = null; }
       else if(go === 'overview'){ state.tab = 'overview'; state.viewMember = null; }
       render();
       window.scrollTo(0, 0);
     };
   });
-  if($('homeRecordBtn')){
-    $('homeRecordBtn').onclick = function(){ state.tab = 'input'; state.editingRecord = null; render(); window.scrollTo(0,0); };
-  }
 
-  // 自分の今週（ログイン時のみ）
   if(state.user){
     var ws = weekStartStr();
     var mine = await Backend.listMyRecords(state.user.id).catch(function(){ return []; });
     var wk = mine.filter(function(r){ return r.date >= ws; });
     var km = wk.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0);
-    if($('homeMineKm')) $('homeMineKm').innerHTML = km.toFixed(1)+'<small> km</small>　<span class="hcSubInline">'+wk.length+'本</span>';
+    if($('homeMine')) $('homeMine').innerHTML = 'あなたの今週　<b>'+km.toFixed(1)+'</b> km・'+wk.length+'本';
   }
-  // みんなの今週
   var ov = await Backend.teamOverview().catch(function(){ return []; });
   var ran = ov.filter(function(m){ return m.weekRuns > 0; }).length;
-  if($('homeTeam')) $('homeTeam').innerHTML = ov.length ? (ov.length+'人中 <b>'+ran+'人</b> が走りました') : 'まだメンバーがいません';
+  if($('homeTeam')) $('homeTeam').textContent = ov.length ? '今週 '+ran+' / '+ov.length+'人が走った' : '—';
 }
 
 function showMsg(id, kind, text){
@@ -938,37 +960,26 @@ function showMsg(id, kind, text){
   el.textContent = text;
 }
 
-/* ---------------- メイン画面 ---------------- */
-async function renderMain(){
+/* ---------------- 画面の枠（ヘッダー＋下のタブ） ---------------- */
+async function renderShell(){
   var rc = await ensureRaceConfig();
-
+  var tabs = [
+    ['home','home','ホーム'], ['input','pencil','記録する'], ['list','chart','自分の記録'],
+    ['overview','users','みんな'], ['guide','book','資料']
+  ];
   app.innerHTML =
     '<header><div class="wrap">'
     +   '<div class="eyebrow">THE FULL CREW — 記録ツール</div>'
     +   '<h1><span class="the">THE</span><span class="full">FULL</span> CREW</h1>'
-    +   countdownHtml(rc)
-    +   '<div class="userbar">'
-    +     '<div class="whoami"><span class="greet">ようこそ、</span><b>'+esc(state.user.name)+'</b><span class="greet">さん</span></div>'
-    +     '<button id="logoutBtn">別の人に切り替える</button>'
-    +   '</div>'
+    +   (state.tab === 'home' ? '' : countdownHtml(rc))   // ホームは大きく出すので重ねない
     + '</div></header>'
     + '<div class="wrap">'
     +   '<div class="tabbar">'
-    +     '<button class="tab" data-tab="home">ホーム</button>'
-    +     '<button class="tab" data-tab="input">記録する</button>'
-    +     '<button class="tab" data-tab="list">自分の記録</button>'
-    +     '<button class="tab" data-tab="overview">みんな</button>'
-    +     '<button class="tab" data-tab="guide">資料</button>'
+    +     tabs.map(function(x){ return '<button class="tab" data-tab="'+x[0]+'">'+icon(x[1])+'<span>'+x[2]+'</span></button>'; }).join('')
     +   '</div>'
     +   '<div id="tabContent"></div>'
     + '</div>'
     + '<footer>THE FULL CREW / '+esc(rc.race_name||'')+'<br>各自の走行状況（距離・最終記録日など）はチーム内で共有されます</footer>';
-
-  $('logoutBtn').onclick = function(){
-    clearIdentity();
-    state.user = null;
-    render();
-  };
 
   wireTabBar();
   renderCurrentTab();
@@ -988,7 +999,8 @@ async function renderInputTab(){
   }
 
   el.innerHTML =
-    '<section><h2>'+(editing ? '記録を編集' : '今日の記録')+'</h2>'
+    whoBarHtml()
+    + '<section><h2>'+(editing ? '記録を編集' : '今日の記録')+'</h2>'
     + (lastRecord ? '<button type="button" class="ghost tiny" id="copyLastBtn" style="margin-bottom:12px">前回の記録をコピー（'+esc(Number(lastRecord.distance_km).toFixed(2))+'km・'+esc(lastRecord.duration_text)+'）</button>' : '')
     + '<div class="card">'
     +   '<div class="grid g4">'
@@ -1011,6 +1023,7 @@ async function renderInputTab(){
     +   '<div class="msg" id="inputMsg"></div>'
     + '</div></section>';
 
+  wireSwitchUser(el);
   if(editing){
     $('cancelEditBtn').onclick = function(){
       state.editingRecord = null;
@@ -1196,11 +1209,13 @@ async function renderListTab(){
   var sumMonth = records.filter(function(r){ return r.date.slice(0,7) === thisMonth; }).reduce(function(a,r){ return a+Number(r.distance_km||0); },0);
 
   el.innerHTML =
-    '<section><h2>自分の記録一覧</h2>'
+    whoBarHtml()
+    + '<section><h2>自分の記録一覧</h2>'
     + '<div class="card"><label>今月</label><div style="font-size:22px;font-weight:800">'+sumMonth.toFixed(1)+'<small style="font-size:13px;color:var(--muted)"> km</small></div></div>'
     + '<div class="card" id="myRecordsBlock"></div>'
     + '</section>';
 
+  wireSwitchUser(el);
   renderMonthlyRecords($('myRecordsBlock'), records, true, renderListTab);
 }
 
@@ -1285,8 +1300,7 @@ async function renderMemberDetail(el){
 
 /* ---------------- ルート描画 ---------------- */
 function render(){
-  if(!state.user) renderAuth();
-  else renderMain();
+  renderShell();
 }
 
 boot();
