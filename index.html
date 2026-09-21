@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260922-4 （公開中の版を確認するための目印） -->
+<!-- build: 20260922-5 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -122,7 +122,13 @@
   .memberRow.me{border-color:var(--accent-dim)}
   /* タブのアイコン */
   .tab .ico{width:16px;height:16px;vertical-align:-3px;margin-right:5px}
-  /* 資料タブの別サイト（説明＋開くボタン） */
+  /* 資料タブの別サイト（埋め込み） */
+  .embedHead{text-align:right;font-size:12px;margin:-4px 0 6px}
+  .embedWrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+  .embedWrap iframe{display:block;width:100%;height:70vh;border:0}
+  body.embedMode footer{display:none}
+  body.embedMode{overflow:hidden}
+  /* （旧）説明＋開くボタン */
   .siteCard{margin-bottom:26px}
   .siteDesc{font-size:14px;color:var(--muted);margin:6px 0 16px;line-height:1.8}
   .siteOpen{display:inline-block;background:var(--accent);color:#180d08;font-weight:800;text-decoration:none;border-radius:12px;padding:12px 22px;font-size:14px}
@@ -746,9 +752,23 @@ function openMyPage(){
   window.scrollTo(0, 0);
 }
 
+// 埋め込みの高さを「画面の下端（スマホは下のタブの上）まで」に合わせる
+function fitEmbed(){
+  var f = $('embedFrame');
+  document.body.classList.toggle('embedMode', !!f);
+  if(!f) return;
+  window.scrollTo(0, 0);
+  var bar = document.querySelector('.tabbar');
+  var barH = (bar && getComputedStyle(bar).position === 'fixed') ? bar.getBoundingClientRect().height : 0;
+  var h = window.innerHeight - f.getBoundingClientRect().top - barH - 8;
+  f.style.height = Math.max(320, Math.round(h)) + 'px';
+}
+window.addEventListener('resize', fitEmbed);
+
 function renderCurrentTab(){
   if(state.tab === 'list'){ state.tab = 'overview'; state.viewMember = state.user ? {id: state.user.id, name: state.user.name} : null; }
   if(!state.user && state.tab === 'input') return renderPickName();
+  document.body.classList.remove('embedMode');
   if(state.tab === 'home') renderHomeTab();
   else if(state.tab === 'overview') renderOverviewTab();
   else if(state.tab === 'guide') renderGuideTab();
@@ -769,13 +789,11 @@ async function renderGuideTab(el){
   if(state.guideSite === 'homework') body = homeworkHtml();
   else if(state.guideSite === 'columns') body = columnsHtml();
   else {
-    // 別サイトはページの中に埋め込まず（スマホでスクロールが二重になるため）、開くボタンにする
+    // 別サイトは埋め込み表示。高さを画面の残りぴったりにして、ページ全体はスクロールさせない
+    // （埋め込みの中とページの二重スクロールでスマホが操作しにくくなるのを防ぐ）
     var l = EXTERNAL_LINKS[state.guideSite];
-    body = '<div class="card siteCard">'
-      + '<h3>'+esc(l.label)+'</h3>'
-      + '<p class="siteDesc">'+esc(l.desc || '')+'</p>'
-      + '<a class="siteOpen" href="'+esc(l.url)+'" target="_blank" rel="noopener">開く ↗</a>'
-      + '</div>';
+    body = '<div class="embedHead"><a href="'+esc(l.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a></div>'
+      + '<div class="embedWrap"><iframe id="embedFrame" src="'+esc(l.url)+'" title="'+esc(l.label)+'"></iframe></div>';
   }
 
   el.innerHTML =
@@ -792,6 +810,8 @@ async function renderGuideTab(el){
       renderGuideTab(el);
     };
   });
+
+  fitEmbed();
 
   el.querySelectorAll('[data-hwweek]').forEach(function(btn){
     btn.onclick = function(){
