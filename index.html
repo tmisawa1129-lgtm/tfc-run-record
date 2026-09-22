@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260922-9 （公開中の版を確認するための目印） -->
+<!-- build: 20260922-10 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -1117,7 +1117,7 @@ async function renderHomeTab(){
     + (hw ? tile('homework', 'clipboard', '宿題', '<span id="homeHwSub">'+esc(hw.theme)+'</span>', newBadge(hw.published || hw.range)) : '')
     + (col ? tile('column', 'book', 'コラム', esc(col.title), newBadge(col.date)) : '')
     + tile('guides', 'info', 'ガイド', 'ナレッジベース・参加者ガイド')
-    + tile('input', 'pencil', '記録する', '使いたい人だけどうぞ')
+    + tile('input', 'pencil', '記録する', 'ここから記録もできます')
     + '</div>';
 
   // iPhoneのSafariで開いていて、まだホーム画面に追加していない人に案内（×で消したら出さない）
