@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260922-8 （公開中の版を確認するための目印） -->
+<!-- build: 20260922-9 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -1525,11 +1525,9 @@ async function renderOverviewTab(el){
   el.innerHTML = '<section><h2>みんなの状況</h2><div id="overviewList"><p class="note">読み込み中…</p></div></section>';
 
   var overview = await Backend.teamOverview().catch(function(){ return []; });
-  // 記録を使っている人だけ並べる（使っていない人が名指しで並ばないように）
-  overview = overview.filter(function(m){ return m.lastDate || (state.user && m.id === state.user.id); });
   var listEl = $('overviewList');
   if(!overview.length){
-    listEl.innerHTML = '<div class="card empty">まだ記録はありません。</div>';
+    listEl.innerHTML = '<div class="card empty">まだメンバーが登録されていません。</div>';
     return;
   }
 
@@ -1553,7 +1551,7 @@ async function renderOverviewTab(el){
       + '<span class="mrKm">'+m.thisMonthKm.toFixed(1)+'<small>km</small></span>'
       + '<span class="mrChev">›</span>'
       + '</button>';
-  }).join('') + '<p class="note" style="margin-top:12px">記録をつけている人だけ表示しています。名前をタップすると、その人の記録が見られます（今月の距離を表示）。自分のページでは記録の編集・削除もできます。</p>';
+  }).join('') + '<p class="note" style="margin-top:12px">名前をタップすると、その人の記録が見られます（今月の距離を表示）。自分のページでは記録の編集・削除もできます。</p>';
 
   listEl.querySelectorAll('[data-member]').forEach(function(btn){
     btn.onclick = function(){
