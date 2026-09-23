@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260922-10 （公開中の版を確認するための目印） -->
+<!-- build: 20260923-1 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -106,12 +106,32 @@
   .tileIco .ico{width:22px;height:22px}
   .tileTitle{font-size:15px;font-weight:800;display:flex;align-items:center;gap:6px}
   .tileSub{font-size:12px;color:var(--muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .hbPractice{display:flex;gap:12px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .hbPractice{display:flex;gap:12px;align-items:center;width:100%;margin-top:14px;padding:12px 0 0;border:none;border-top:1px solid var(--line);background:none;color:var(--text);font:inherit;text-align:left;cursor:pointer}
   .hbPractice > .ico{width:24px;height:24px;color:var(--accent);flex:0 0 auto}
   .hbpLabel{font-size:11.5px;font-weight:700;color:var(--muted)}
   .hbpTitle{font-size:14.5px;font-weight:700;margin-top:1px}
   .hbpLeft{font-size:12px;color:var(--accent);margin-left:8px;font-weight:700}
   .lineNote{font-size:11.5px;color:var(--muted);margin:0 0 26px}
+  /* 日程 */
+  .schRow{display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-top:1px solid var(--line)}
+  .schRow:first-child{border-top:none}
+  .schRow.done{opacity:.45}
+  .schRow.next{background:var(--accent-soft)}
+  .schDate{flex:0 0 56px;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.3}
+  .schWd{display:block;font-size:11px;color:var(--muted);font-weight:600}
+  .schBody{flex:1 1 auto;min-width:0}
+  .schTitle{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .schNext{font-size:10px;font-weight:800;color:#180d08;background:var(--accent);border-radius:99px;padding:1px 7px}
+  .schSub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .schNote{font-size:11.5px;color:var(--dim);margin-top:2px}
+  .schKind{flex:0 0 auto;font-size:10.5px;color:var(--muted);border:1px solid var(--line2);border-radius:99px;padding:1px 8px;margin-top:2px}
+  /* リンク一覧 */
+  .linkRow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-top:1px solid var(--line);padding:14px 16px;text-align:left;color:var(--text);font:inherit;cursor:pointer}
+  .linkRow:first-child{border-top:none}
+  .linkRowMain{flex:1 1 auto;min-width:0}
+  .linkRowMain b{display:block;font-size:14.5px}
+  .linkRowMain span{display:block;font-size:12px;color:var(--muted);line-height:1.6;margin-top:2px}
+  .hbpArrow{margin-left:auto;color:var(--muted);font-size:20px}
   .hrLabel{font-size:11.5px;font-weight:700;color:var(--muted)}
   .hrTitle{font-size:15px;font-weight:700;margin-top:2px}
   .hrSub{font-size:12px;color:var(--muted)}
@@ -148,7 +168,7 @@
   /* タブのアイコン */
   .tab .ico{width:16px;height:16px;vertical-align:-3px;margin-right:5px}
   /* 資料タブの別サイト（埋め込み） */
-  .embedHead{text-align:right;font-size:12px;margin:-4px 0 6px}
+  .embedHead{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;margin:-4px 0 8px}
   .embedWrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
   .embedWrap iframe{display:block;width:100%;height:70vh;border:0}
   body.embedMode footer{display:none}
@@ -744,13 +764,19 @@ function renderLevelPicker(el, after){
 }
 
 /* ------------ 練習会の日程（TFCのカレンダーより） ------------ */
-var PRACTICES = [
-  { date: '2026-10-03', time: '8:00', place: '代々木公園' },
-  { date: '2026-10-17', time: '8:00', place: '代々木公園' },
-  { date: '2026-11-01', time: '8:00', place: '駒沢公園', note: '30km走 1回目' },
-  { date: '2026-11-14', time: '8:00', place: '代々木公園' },
-  { date: '2026-12-05', time: '8:00', place: '代々木公園' },
-  { date: '2026-12-20', time: '8:00', place: '駒沢公園', note: '30km走 2回目' }
+/* ------------ 日程（練習会・大会・申込の締切） ------------
+   kind: practice=練習会 / race=大会 / entry=申込 の3種類。日付順に並べる */
+var SCHEDULE = [
+  { date: '2026-09-25', until: '2026-10-31', kind: 'entry', title: '一般エントリー受付', note: 'RUNNETから。参加料9,000円' },
+  { date: '2026-10-03', time: '8:00', kind: 'practice', title: '練習会', place: '代々木公園' },
+  { date: '2026-10-14', kind: 'entry', title: 'ふるさと納税での申込 締切' },
+  { date: '2026-10-17', time: '8:00', kind: 'practice', title: '練習会', place: '代々木公園' },
+  { date: '2026-11-01', time: '8:00', kind: 'practice', title: '練習会', place: '駒沢公園', note: '30km走 1回目' },
+  { date: '2026-11-14', time: '8:00', kind: 'practice', title: '練習会', place: '代々木公園' },
+  { date: '2026-12-05', time: '8:00', kind: 'practice', title: '練習会', place: '代々木公園' },
+  { date: '2026-12-20', time: '8:00', kind: 'practice', title: '練習会', place: '駒沢公園', note: '30km走 2回目' },
+  { date: '2027-01-05', dateLabel: '1月上旬', kind: 'entry', title: 'ゼッケン・計測チップが届く', note: '当日受付はないので忘れずに' },
+  { date: '2027-01-31', time: '10:30', kind: 'race', title: '第74回 勝田全国マラソン', place: '石川運動ひろば（ひたちなか市）', note: 'スタート10:30・制限6時間' }
 ];
 
 function loadIdentity(){
@@ -939,25 +965,32 @@ async function renderGuideTab(el){
   var keys = [];
   if(HOMEWORK.enabled && HOMEWORK.weeks.length) keys.push('homework');
   if(typeof COLUMNS !== 'undefined' && COLUMNS.length) keys.push('columns');
-  keys = keys.concat(Object.keys(EXTERNAL_LINKS));
-  if(keys.indexOf(state.guideSite) < 0) state.guideSite = keys[0];
-  var label = function(k){ return k === 'homework' ? '宿題' : k === 'columns' ? 'コラム' : EXTERNAL_LINKS[k].short; };
+  keys.push('schedule', 'links');
+  var isExternal = !!EXTERNAL_LINKS[state.guideSite];
+  if(keys.indexOf(state.guideSite) < 0 && !isExternal) state.guideSite = keys[0];
+  var label = function(k){
+    return k === 'homework' ? '宿題' : k === 'columns' ? 'コラム' : k === 'schedule' ? '日程' : 'リンク';
+  };
+  var activeKey = isExternal ? 'links' : state.guideSite;
 
   var body;
   if(state.guideSite === 'homework') body = homeworkHtml();
   else if(state.guideSite === 'columns') body = columnsHtml();
+  else if(state.guideSite === 'schedule') body = scheduleHtml();
+  else if(state.guideSite === 'links') body = linksHtml();
   else {
     // 別サイトは埋め込み表示。高さを画面の残りぴったりにして、ページ全体はスクロールさせない
     // （埋め込みの中とページの二重スクロールでスマホが操作しにくくなるのを防ぐ）
     var l = EXTERNAL_LINKS[state.guideSite];
-    body = '<div class="embedHead"><a href="'+esc(l.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a></div>'
+    body = '<div class="embedHead"><button type="button" class="ghost tiny" data-guide="links">← リンク一覧</button>'
+      + '<a href="'+esc(l.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a></div>'
       + '<div class="embedWrap"><iframe id="embedFrame" src="'+esc(l.url)+'" title="'+esc(l.label)+'"></iframe></div>';
   }
 
   el.innerHTML =
       '<div class="monthTabs guideTabs">'
     +   keys.map(function(k){
-          return '<button type="button" class="monthTab'+(k===state.guideSite?' active':'')+'" data-guide="'+k+'">'+esc(label(k))+'</button>';
+          return '<button type="button" class="monthTab'+(k===activeKey?' active':'')+'" data-guide="'+k+'">'+esc(label(k))+'</button>';
         }).join('')
     + '</div>'
     + body;
@@ -994,6 +1027,52 @@ async function renderGuideTab(el){
       renderGuideTab(el);
     };
   });
+}
+
+/* 日程タブの中身。練習会・大会・申込の締切を日付順に並べる */
+function scheduleHtml(){
+  var today = todayStr();
+  var nextDate = nextEventDate();
+  var kindLabel = { practice:'練習会', race:'大会', entry:'申込' };
+  return '<div class="card" style="padding:4px 0;margin-bottom:26px">'
+    + SCHEDULE.map(function(e){
+        var done = (e.until || e.date) < today;
+        var isNext = (e.date === nextDate);
+        var d = e.date.split('-');
+        var dateText = e.dateLabel ? e.dateLabel : (Number(d[1])+'/'+Number(d[2]));
+        var sub = [];
+        if(e.time) sub.push(e.time);
+        if(e.place) sub.push(e.place);
+        if(e.until){
+          var u = e.until.split('-');
+          sub.push('〜'+Number(u[1])+'/'+Number(u[2]));
+        }
+        return '<div class="schRow'+(done?' done':'')+(isNext?' next':'')+'">'
+          + '<div class="schDate">'+esc(dateText)
+          +   (e.dateLabel ? '' : '<span class="schWd">'+WEEKDAYS[new Date(Number(d[0]),Number(d[1])-1,Number(d[2])).getDay()]+'</span>')
+          + '</div>'
+          + '<div class="schBody">'
+          +   '<div class="schTitle">'+esc(e.title)+(isNext?'<span class="schNext">次</span>':'')+'</div>'
+          +   (sub.length ? '<div class="schSub">'+esc(sub.join('　'))+'</div>' : '')
+          +   (e.note ? '<div class="schNote">'+esc(e.note)+'</div>' : '')
+          + '</div>'
+          + '<div class="schKind">'+kindLabel[e.kind]+'</div>'
+          + '</div>';
+      }).join('')
+    + '</div>';
+}
+
+/* リンクタブの中身。外部サイトの一覧（選ぶと埋め込みで開く） */
+function linksHtml(){
+  return '<div class="card" style="padding:4px 0;margin-bottom:26px">'
+    + Object.keys(EXTERNAL_LINKS).map(function(k){
+        var l = EXTERNAL_LINKS[k];
+        return '<button type="button" class="linkRow" data-guide="'+k+'">'
+          + '<span class="linkRowMain"><b>'+esc(l.label)+'</b><span>'+esc(l.desc || '')+'</span></span>'
+          + '<span class="colArrow">›</span>'
+          + '</button>';
+      }).join('')
+    + '</div>';
 }
 
 /* 宿題タブの中身。週ごとの配布資料と、最初の宿題ガイドを画像で見せる */
@@ -1082,7 +1161,13 @@ function fmtMDW(dateStr){
 }
 function nextPractice(){
   var today = todayStr();
-  return PRACTICES.filter(function(p){ return p.date >= today; })[0] || null;
+  return SCHEDULE.filter(function(p){ return p.kind === 'practice' && p.date >= today; })[0] || null;
+}
+// 今日以降でいちばん近い予定（日程の「次」の印に使う）
+function nextEventDate(){
+  var today = todayStr();
+  var e = SCHEDULE.filter(function(x){ return (x.until || x.date) >= today; })[0];
+  return e ? e.date : null;
 }
 
 async function renderHomeTab(){
@@ -1098,9 +1183,9 @@ async function renderHomeTab(){
     + '<div class="hbTop">勝田まで <b>'+(days != null && days > 0 ? days : '—')+'</b> 日</div>'
     + '<div class="hbRace">'+esc(rc.race_name || '')+'</div>'
     + (pr
-        ? '<div class="hbPractice">'+icon('calendar')+'<div><div class="hbpLabel">次の練習会'+(pr.note ? '（'+esc(pr.note)+'）' : '')+'</div>'
+        ? '<button type="button" class="hbPractice" data-go="schedule">'+icon('calendar')+'<div><div class="hbpLabel">次の練習会'+(pr.note ? '（'+esc(pr.note)+'）' : '')+'</div>'
           + '<div class="hbpTitle">'+fmtMDW(pr.date)+' '+esc(pr.time)+'　'+esc(pr.place)
-          + '<span class="hbpLeft">'+(-daysAgo(pr.date) === 0 ? '今日' : 'あと'+(-daysAgo(pr.date))+'日')+'</span></div></div></div>'
+          + '<span class="hbpLeft">'+(-daysAgo(pr.date) === 0 ? '今日' : 'あと'+(-daysAgo(pr.date))+'日')+'</span></div></div><span class="hbpArrow">›</span></button>'
         : '')
     + (state.user ? '<div class="hbMine link" id="homeMine">あなたの今週　…</div>' : '')
     + '</div>';
@@ -1116,7 +1201,7 @@ async function renderHomeTab(){
   var tiles = '<div class="tileGrid">'
     + (hw ? tile('homework', 'clipboard', '宿題', '<span id="homeHwSub">'+esc(hw.theme)+'</span>', newBadge(hw.published || hw.range)) : '')
     + (col ? tile('column', 'book', 'コラム', esc(col.title), newBadge(col.date)) : '')
-    + tile('guides', 'info', 'ガイド', 'ナレッジベース・参加者ガイド')
+    + tile('guides', 'info', 'リンク', 'ナレッジベース・参加者ガイド')
     + tile('input', 'pencil', '記録する', 'ここから記録もできます')
     + '</div>';
 
@@ -1141,7 +1226,8 @@ async function renderHomeTab(){
       var go = btn.dataset.go;
       if(go === 'homework'){ state.tab = 'guide'; state.guideSite = 'homework'; state.homeworkWeek = null; }
       else if(go === 'column'){ state.tab = 'guide'; state.guideSite = 'columns'; state.columnDate = col ? col.date : null; }
-      else if(go === 'guides'){ state.tab = 'guide'; state.guideSite = 'guide1'; }
+      else if(go === 'guides'){ state.tab = 'guide'; state.guideSite = 'links'; }
+      else if(go === 'schedule'){ state.tab = 'guide'; state.guideSite = 'schedule'; }
       else if(go === 'input'){ state.tab = 'input'; state.editingRecord = null; }
       else if(go === 'overview'){ state.tab = 'overview'; state.viewMember = null; }
       render();
