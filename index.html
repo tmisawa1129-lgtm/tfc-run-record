@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260923-1 （公開中の版を確認するための目印） -->
+<!-- build: 20260925-1 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -154,6 +154,7 @@
   .menuBtn.on{background:var(--accent);border-color:var(--accent);color:#180d08}
   .menuHint{font-size:12.5px;color:var(--accent);margin-top:10px;font-weight:700}
   .menuTag{font-size:10px;font-weight:800;color:var(--accent);border:1px solid var(--accent-dim);border-radius:99px;padding:0 6px;margin-left:4px;white-space:nowrap}
+  .menuTag.strengthTag{color:var(--ok);border-color:var(--ok)}
   .levelList{display:flex;flex-direction:column;gap:10px}
   .levelBtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--card);border:1px solid var(--line2);color:var(--text);border-radius:14px;padding:16px}
   .levelBtn b{font-size:16px}
@@ -1500,7 +1501,7 @@ async function renderStrengthInput(el, menuBar){
   });
 }
 
-function recordsTableHtml(records, withActions){
+function recordsTableHtml(records, withActions, strengthDates){
   if(!records.length) return '<div class="empty">まだ記録がありません。</div>';
   var cols = 7;
   return '<table class="recTable"><thead><tr><th>日付</th><th class="num">距離</th><th class="num">時間</th><th class="num">ペース</th><th class="num">心拍</th><th class="num">RPE</th><th></th></tr></thead><tbody>'
@@ -1513,7 +1514,10 @@ function recordsTableHtml(records, withActions){
           + (r.memo ? (extra.length ? '<br>' : '') + '💬 ' + esc(r.memo) : '')
           || 'ピッチ・接地時間・メモの入力はありません。';
         return '<tr class="recRow">'
-          + '<td class="cDate">'+esc(r.date.slice(5).replace('-','/'))+(r.menu === 'long' || r.menu === 'easy' ? ' <span class="menuTag">'+MENU_LABELS[r.menu]+'</span>' : '')+'</td>'
+          + '<td class="cDate">'+esc(r.date.slice(5).replace('-','/'))
+          +   (r.menu === 'long' || r.menu === 'easy' ? ' <span class="menuTag">'+MENU_LABELS[r.menu]+'</span>' : '')
+          +   (strengthDates && strengthDates.indexOf(r.date) >= 0 ? ' <span class="menuTag strengthTag">補強</span>' : '')
+          + '</td>'
           + '<td class="num cDist">'+Number(r.distance_km).toFixed(2)+'<span class="unit"> km</span></td>'
           + '<td class="num cSub" data-label="時間">'+esc(r.duration_text)+'</td>'
           + '<td class="num cSub" data-label="ペース">'+esc(r.pace_text)+'</td>'
@@ -1536,7 +1540,19 @@ function monthLabel(key){
   return parts[0] + '年' + parseInt(parts[1], 10) + '月';
 }
 
-function renderMonthlyRecords(containerEl, records, withActions, onChange){
+// 走っていない日の補強（記録の行がないもの）を、月のまとめの下に出す
+function strengthOnlyHtml(monthKey, recs, strengthDates){
+  if(!strengthDates || !strengthDates.length) return '';
+  var runDates = recs.map(function(r){ return r.date; });
+  var only = strengthDates.filter(function(d){ return d.slice(0,7) === monthKey && runDates.indexOf(d) < 0; })
+                          .sort().reverse();
+  if(!only.length) return '';
+  return '<p class="note" style="margin-top:10px">補強だけの日：'
+    + only.map(function(d){ return esc(d.slice(5).replace('-','/')); }).join('・')
+    + '（'+only.length+'回）</p>';
+}
+
+function renderMonthlyRecords(containerEl, records, withActions, onChange, strengthDates){
   var byMonth = {};
   records.forEach(function(r){
     var k = r.date.slice(0, 7);
@@ -1557,7 +1573,8 @@ function renderMonthlyRecords(containerEl, records, withActions, onChange){
         return '<button type="button" class="monthTab'+(k===current?' active':'')+'" data-month="'+k+'">'+monthLabel(k)+'</button>';
       }).join('') + '</div>'
       + '<div class="monthSummary">'+monthLabel(current)+'の合計：<b>'+total.toFixed(1)+' km</b>（'+recs.length+'件）</div>'
-      + recordsTableHtml(recs, withActions);
+      + recordsTableHtml(recs, withActions, strengthDates)
+      + strengthOnlyHtml(current, recs, strengthDates);
 
     containerEl.querySelectorAll('.monthTab').forEach(function(btn){
       btn.onclick = function(){ current = btn.dataset.month; draw(); };
@@ -1692,8 +1709,16 @@ async function renderMemberDetail(el){
     }
   }
 
+  // 補強をやった日（記録の横に「補強」と出すため）
+  var strengthDates = [];
+  if(HW.ready){
+    var from = recs.length ? recs[recs.length-1].date : '2026-01-01';
+    var logs = await Backend.listStrength(from).catch(function(){ return []; });
+    strengthDates = logs.filter(function(x){ return x.member_id === target.id; }).map(function(x){ return x.date; });
+  }
+
   // 自分のページだけ編集・削除ボタンを付ける
-  renderMonthlyRecords($('memberRecords'), recs, isMe, isMe ? function(){ renderMemberDetail(el); } : null);
+  renderMonthlyRecords($('memberRecords'), recs, isMe, isMe ? function(){ renderMemberDetail(el); } : null, strengthDates);
 }
 
 /* ---------------- ルート描画 ---------------- */
