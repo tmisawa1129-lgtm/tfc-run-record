@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260928-1 （公開中の版を確認するための目印） -->
+<!-- build: 20260928-2 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -1092,7 +1092,8 @@ function homeworkHtml(){
   if(!isGuide && (typeof sel !== 'number' || sel < 0 || sel >= weeks.length)) sel = weeks.length - 1;
   state.homeworkWeek = isGuide ? 'guide' : sel;
 
-  var tabItems = weeks.map(function(x, i){ return {key:String(i), label:x.label, on:(!isGuide && i===sel)}; });
+  // 新しい週を左に（ガイドは右端のまま）
+  var tabItems = weeks.map(function(x, i){ return {key:String(i), label:x.label, on:(!isGuide && i===sel)}; }).reverse();
   if(guide) tabItems.push({key:'guide', label:guide.title, on:isGuide});
   var tabs = tabItems.length > 1
     ? '<div class="monthTabs">'
