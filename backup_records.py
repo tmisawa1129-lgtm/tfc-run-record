@@ -24,6 +24,7 @@ TABLES = {
     "members": "members?select=*&order=name",
     "records": "records?select=*&order=date",
     "race_config": "race_config?select=*",
+    "strength_logs": "strength_logs?select=*&order=date",
 }
 
 
