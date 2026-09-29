@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260929-1 （公開中の版を確認するための目印） -->
+<!-- build: 20260929-4 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -96,6 +96,7 @@
   .homeBand{background:var(--card2);border:1px solid var(--accent-dim);border-radius:16px;padding:18px 18px 16px}
   .hbTop{font-size:13px;font-weight:700;color:var(--muted)}
   .hbTop b{font-size:40px;font-weight:800;color:var(--accent);margin:0 4px;letter-spacing:-.02em;line-height:1}
+  .hbClock{font-size:13px;font-weight:700;color:var(--muted);margin-left:8px;font-variant-numeric:tabular-nums}
   .hbRace{font-size:12px;color:var(--muted);margin-top:4px}
   .hbMine{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;font-weight:700;color:var(--muted)}
   .hbMine b{font-size:16px;color:var(--text)}
@@ -110,7 +111,7 @@
   .hbPractice > .ico{width:24px;height:24px;color:var(--accent);flex:0 0 auto}
   .hbpLabel{font-size:11.5px;font-weight:700;color:var(--muted)}
   .hbpTitle{font-size:14.5px;font-weight:700;margin-top:1px}
-  .hbpLeft{font-size:12px;color:var(--accent);margin-left:8px;font-weight:700}
+  .hbpLeft{font-size:12px;color:var(--accent);margin-left:8px;font-weight:700;white-space:nowrap}
   .lineNote{font-size:11.5px;color:var(--muted);margin:0 0 26px}
   /* 日程 */
   .schRow{display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-top:1px solid var(--line)}
@@ -646,6 +647,7 @@ var Backend = DEMO_MODE ? LocalBackend : SupabaseBackend;
    ============================================================ */
 var $ = function(id){ return document.getElementById(id); };
 var app = $('app');
+var homeClockTimer = null;   // ホームの残り時間を1分ごとに更新するためのタイマー
 
 var state = {
   user: null,        // {id, name, role}
@@ -835,28 +837,26 @@ async function ensureRaceConfig(){
   return state.raceConfig;
 }
 
-function raceDaysLeft(rc){
+// 大会のスタート（10:30）までの残り時間。24時間ごとに1日と数える
+function raceCountdown(rc){
   if(!rc || !rc.race_date) return null;
   var p = rc.race_date.split('-');
-  var race = new Date(p[0], p[1]-1, p[2]);
-  var now = new Date();
-  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((race - today)/86400000);
+  var start = new Date(p[0], p[1]-1, p[2], 10, 30, 0);
+  var diff = start - new Date();
+  if(diff <= 0) return { days: 0, hours: 0, minutes: 0, past: true };
+  var mins = Math.floor(diff / 60000);
+  return { days: Math.floor(mins / 1440), hours: Math.floor((mins % 1440) / 60), minutes: mins % 60, past: false };
 }
 
 function countdownHtml(rc){
-  if(!rc.race_date) return '';
-  // 日付どうしの差で数える（時刻を混ぜると大会当日の朝に「あと1日」と出てしまうため）
-  var p = rc.race_date.split('-');
-  var race = new Date(p[0], p[1]-1, p[2]);
-  var now = new Date();
-  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  var days = Math.round((race - today)/86400000);
-  var text = days > 0
-    ? '🏅 '+esc(rc.race_name)+'まで あと '+days+' 日'
-    : days === 0
-      ? '🏅 '+esc(rc.race_name)+' 当日・いってらっしゃい！'
-      : '🏅 '+esc(rc.race_name)+' お疲れさまでした！';
+  // ホームの帯と同じ数え方（スタート10:30までの残り時間を24時間で割る）
+  var c = raceCountdown(rc);
+  if(!c) return '';
+  var text = c.past
+    ? '🏅 '+esc(rc.race_name)+' お疲れさまでした！'
+    : c.days > 0
+      ? '🏅 '+esc(rc.race_name)+'まで あと '+c.days+' 日'
+      : '🏅 '+esc(rc.race_name)+' 当日・いってらっしゃい！';
   return '<div class="countdown">'+text+'</div>';
 }
 
@@ -1182,14 +1182,16 @@ function nextEventDate(){
 async function renderHomeTab(){
   var el = $('tabContent');
   var rc = await ensureRaceConfig();
-  var days = raceDaysLeft(rc);
+  var cd = raceCountdown(rc);
+  var days = cd && !cd.past ? cd.days : null;
   var hw = (HOMEWORK.enabled && HOMEWORK.weeks.length) ? HOMEWORK.weeks[HOMEWORK.weeks.length-1] : null;
   var col = (typeof COLUMNS !== 'undefined' && COLUMNS.length) ? COLUMNS[COLUMNS.length-1] : null;
   var pr = nextPractice();
 
   // 上の帯：残り日数と次の練習会（情報が主役）。記録している人にだけ「あなたの今週」を小さく
   var band = '<div class="homeBand">'
-    + '<div class="hbTop">勝田まで <b>'+(days != null && days > 0 ? days : '—')+'</b> 日</div>'
+    + '<div class="hbTop">勝田まで <b>'+(days != null && days > 0 ? days : '—')+'</b> 日'
+    +   '<span class="hbClock" id="homeClock"></span></div>'
     + '<div class="hbRace">'+esc(rc.race_name || '')+'</div>'
     + (pr
         ? '<button type="button" class="hbPractice" data-go="schedule">'+icon('calendar')+'<div><div class="hbpLabel">次の練習会'+(pr.note ? '（'+esc(pr.note)+'）' : '')+'</div>'
@@ -1229,6 +1231,20 @@ async function renderHomeTab(){
     try{ localStorage.setItem('tfc_hide_a2hs','1'); }catch(e){}
     var box = el.querySelector('.a2hs'); if(box) box.remove();
   };
+
+  // 残り時間は1分ごとに更新（秒は動かさない。せかす感じにしないため）
+  function tickClock(){
+    var elc = $('homeClock');
+    if(!elc){ if(homeClockTimer){ clearInterval(homeClockTimer); homeClockTimer = null; } return; }
+    var c = raceCountdown(rc);
+    if(!c || c.past){ elc.textContent = ''; return; }
+    elc.textContent = c.hours + '時間' + c.minutes + '分';
+    var big = elc.parentNode.querySelector('b');
+    if(big) big.textContent = c.days;
+  }
+  tickClock();
+  if(homeClockTimer) clearInterval(homeClockTimer);
+  homeClockTimer = setInterval(tickClock, 60000);
 
   el.querySelectorAll('[data-go]').forEach(function(btn){
     btn.onclick = function(){
