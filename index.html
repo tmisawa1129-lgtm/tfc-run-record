@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260928-2 （公開中の版を確認するための目印） -->
+<!-- build: 20260929-1 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -1642,15 +1642,9 @@ async function renderOverviewTab(el){
     return;
   }
 
-  // 自分を一番上に。そのあとは記録がある人を先に、最終記録が新しい順
+  // 名前順（ABC・あいうえお）に並べる。上下で優劣が出ないように、記録の有無や新しさでは並べ替えない
   var myId = state.user ? state.user.id : null;
-  overview.sort(function(a, b){
-    if(a.id === myId) return -1;
-    if(b.id === myId) return 1;
-    if(!!a.lastDate !== !!b.lastDate) return a.lastDate ? -1 : 1;
-    if(a.lastDate && b.lastDate && a.lastDate !== b.lastDate) return a.lastDate < b.lastDate ? 1 : -1;
-    return a.name.localeCompare(b.name, 'ja');
-  });
+  overview.sort(function(a, b){ return a.name.localeCompare(b.name, 'ja'); });
 
   listEl.innerHTML = overview.map(function(m){
     return '<button type="button" class="memberRow'+(m.lastDate ? '' : ' empty')+(m.id === myId ? ' me' : '')+'"'
