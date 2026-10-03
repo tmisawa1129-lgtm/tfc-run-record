@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20260929-4 （公開中の版を確認するための目印） -->
+<!-- build: 20261003-1 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -127,7 +127,7 @@
   .schNote{font-size:11.5px;color:var(--dim);margin-top:2px}
   .schKind{flex:0 0 auto;font-size:10.5px;color:var(--muted);border:1px solid var(--line2);border-radius:99px;padding:1px 8px;margin-top:2px}
   /* リンク一覧 */
-  .linkRow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-top:1px solid var(--line);padding:14px 16px;text-align:left;color:var(--text);font:inherit;cursor:pointer}
+  .linkRow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-top:1px solid var(--line);padding:14px 16px;text-align:left;color:var(--text);font:inherit;cursor:pointer;text-decoration:none}
   .linkRow:first-child{border-top:none}
   .linkRowMain{flex:1 1 auto;min-width:0}
   .linkRowMain b{display:block;font-size:14.5px}
@@ -789,6 +789,14 @@ var SCHEDULE = [
   { date: '2027-01-31', time: '10:30', kind: 'race', title: '第74回 勝田全国マラソン', place: '石川運動ひろば（ひたちなか市）', note: 'スタート10:30・制限6時間' }
 ];
 
+/* ------------ 毎月の結果発表（先生が出すMVP・ポイントのページ） ------------
+   新しい月が出たら先頭に1つ足す（画面では新しい順に並ぶ） */
+var MONTHLY = [
+  { month: '2026-09', label: '9月', url: 'https://tfc-202609.netlify.app/' },
+  { month: '2026-08', label: '8月', url: 'https://tfc-202608.netlify.app/' },
+  { month: '2026-07', label: '7月', url: 'https://tfc-202607.netlify.app/' }
+];
+
 function loadIdentity(){
   try{
     var s = localStorage.getItem('tfc_identity');
@@ -974,10 +982,12 @@ async function renderGuideTab(el){
   if(HOMEWORK.enabled && HOMEWORK.weeks.length) keys.push('homework');
   if(typeof COLUMNS !== 'undefined' && COLUMNS.length) keys.push('columns');
   keys.push('schedule', 'links');
+  if(MONTHLY.length) keys.push('monthly');
   var isExternal = !!EXTERNAL_LINKS[state.guideSite];
   if(keys.indexOf(state.guideSite) < 0 && !isExternal) state.guideSite = keys[0];
   var label = function(k){
-    return k === 'homework' ? '宿題' : k === 'columns' ? 'コラム' : k === 'schedule' ? '日程' : 'リンク';
+    return k === 'homework' ? '宿題' : k === 'columns' ? 'コラム' : k === 'schedule' ? '日程'
+      : k === 'monthly' ? '結果発表' : 'リンク';
   };
   var activeKey = isExternal ? 'links' : state.guideSite;
 
@@ -986,6 +996,7 @@ async function renderGuideTab(el){
   else if(state.guideSite === 'columns') body = columnsHtml();
   else if(state.guideSite === 'schedule') body = scheduleHtml();
   else if(state.guideSite === 'links') body = linksHtml();
+  else if(state.guideSite === 'monthly') body = monthlyHtml();
   else {
     // 別サイトは埋め込み表示。高さを画面の残りぴったりにして、ページ全体はスクロールさせない
     // （埋め込みの中とページの二重スクロールでスマホが操作しにくくなるのを防ぐ）
@@ -1066,6 +1077,19 @@ function scheduleHtml(){
           + '</div>'
           + '<div class="schKind">'+kindLabel[e.kind]+'</div>'
           + '</div>';
+      }).join('')
+    + '</div>';
+}
+
+/* 結果発表タブの中身。月ごとのページへのリンク（別のタブで開く） */
+function monthlyHtml(){
+  return '<p class="lineNote" style="margin:0 0 10px">先生が毎月出している結果発表（MVP・ポイント）のページです。</p>'
+    + '<div class="card" style="padding:4px 0;margin-bottom:26px">'
+    + MONTHLY.map(function(m){
+        return '<a class="linkRow" href="'+esc(m.url)+'" target="_blank" rel="noopener">'
+          + '<span class="linkRowMain"><b>'+esc(m.label)+' MVP発表</b><span>'+esc(m.month.replace('-','年')+'月')+'</span></span>'
+          + '<span class="colArrow">↗</span>'
+          + '</a>';
       }).join('')
     + '</div>';
 }
