@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261003-1 （公開中の版を確認するための目印） -->
+<!-- build: 20261003-2 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -975,6 +975,15 @@ function renderCurrentTab(){
   else renderInputTab();
 }
 
+// 資料タブの中に埋め込んで見せる別サイトを探す。見つからなければ null（＝ふつうのピル）
+function embedTarget(key){
+  var l = EXTERNAL_LINKS[key];
+  if(l) return { url: l.url, label: l.label, back: 'links', backLabel: 'リンク一覧' };
+  var m = MONTHLY.filter(function(x){ return 'mvp' + x.month === key; })[0];
+  if(m) return { url: m.url, label: m.label + ' MVP発表', back: 'monthly', backLabel: '結果発表' };
+  return null;
+}
+
 /* ---------------- 資料タブ（宿題・コラム＋外部サイトへのリンク） ---------------- */
 async function renderGuideTab(el){
   el = el || $('tabContent');
@@ -983,13 +992,13 @@ async function renderGuideTab(el){
   if(typeof COLUMNS !== 'undefined' && COLUMNS.length) keys.push('columns');
   keys.push('schedule', 'links');
   if(MONTHLY.length) keys.push('monthly');
-  var isExternal = !!EXTERNAL_LINKS[state.guideSite];
-  if(keys.indexOf(state.guideSite) < 0 && !isExternal) state.guideSite = keys[0];
+  var emb = embedTarget(state.guideSite);
+  if(keys.indexOf(state.guideSite) < 0 && !emb) state.guideSite = keys[0];
   var label = function(k){
     return k === 'homework' ? '宿題' : k === 'columns' ? 'コラム' : k === 'schedule' ? '日程'
       : k === 'monthly' ? '結果発表' : 'リンク';
   };
-  var activeKey = isExternal ? 'links' : state.guideSite;
+  var activeKey = emb ? emb.back : state.guideSite;
 
   var body;
   if(state.guideSite === 'homework') body = homeworkHtml();
@@ -1000,10 +1009,9 @@ async function renderGuideTab(el){
   else {
     // 別サイトは埋め込み表示。高さを画面の残りぴったりにして、ページ全体はスクロールさせない
     // （埋め込みの中とページの二重スクロールでスマホが操作しにくくなるのを防ぐ）
-    var l = EXTERNAL_LINKS[state.guideSite];
-    body = '<div class="embedHead"><button type="button" class="ghost tiny" data-guide="links">← リンク一覧</button>'
-      + '<a href="'+esc(l.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a></div>'
-      + '<div class="embedWrap"><iframe id="embedFrame" src="'+esc(l.url)+'" title="'+esc(l.label)+'"></iframe></div>';
+    body = '<div class="embedHead"><button type="button" class="ghost tiny" data-guide="'+emb.back+'">← '+esc(emb.backLabel)+'</button>'
+      + '<a href="'+esc(emb.url)+'" target="_blank" rel="noopener">別のタブで開く ↗</a></div>'
+      + '<div class="embedWrap"><iframe id="embedFrame" src="'+esc(emb.url)+'" title="'+esc(emb.label)+'"></iframe></div>';
   }
 
   el.innerHTML =
@@ -1081,15 +1089,15 @@ function scheduleHtml(){
     + '</div>';
 }
 
-/* 結果発表タブの中身。月ごとのページへのリンク（別のタブで開く） */
+/* 結果発表タブの中身。月ごとのページの一覧（タップすると資料タブの中に表示する） */
 function monthlyHtml(){
   return '<p class="lineNote" style="margin:0 0 10px">先生が毎月出している結果発表（MVP・ポイント）のページです。</p>'
     + '<div class="card" style="padding:4px 0;margin-bottom:26px">'
     + MONTHLY.map(function(m){
-        return '<a class="linkRow" href="'+esc(m.url)+'" target="_blank" rel="noopener">'
+        return '<button type="button" class="linkRow" data-guide="mvp'+esc(m.month)+'">'
           + '<span class="linkRowMain"><b>'+esc(m.label)+' MVP発表</b><span>'+esc(m.month.replace('-','年')+'月')+'</span></span>'
-          + '<span class="colArrow">↗</span>'
-          + '</a>';
+          + '<span class="colArrow">›</span>'
+          + '</button>';
       }).join('')
     + '</div>';
 }
