@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261005-2 （公開中の版を確認するための目印） -->
+<!-- build: 20261005-3 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -113,6 +113,10 @@
   .hbpTitle{font-size:14.5px;font-weight:700;margin-top:1px}
   .hbpLeft{font-size:12px;color:var(--accent);margin-left:8px;font-weight:700;white-space:nowrap}
   .lineNote{font-size:11.5px;color:var(--muted);margin:0 0 26px}
+  /* 宿題タブで、レベルをまだ選んでいない人にだけ出す1行 */
+  .levelHint{display:flex;align-items:center;gap:8px;width:100%;background:var(--card);border:1px solid var(--line2);color:var(--muted);border-radius:12px;padding:11px 13px;margin:0 0 10px;font:inherit;font-size:12px;text-align:left;cursor:pointer}
+  .levelHint span{flex:1 1 auto}
+  .levelHint b{color:var(--text);font-weight:600}
   /* 日程 */
   .schRow{display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-top:1px solid var(--line)}
   .schRow:first-child{border-top:none}
@@ -1038,6 +1042,13 @@ async function renderGuideTab(el){
 
   fitEmbed();
 
+  el.querySelectorAll('[data-levelhint]').forEach(function(btn){
+    btn.onclick = function(){
+      renderLevelPicker(el, function(){ renderGuideTab(el); window.scrollTo(0, 0); });
+      window.scrollTo(0, 0);
+    };
+  });
+
   el.querySelectorAll('[data-hwweek]').forEach(function(btn){
     btn.onclick = function(){
       var v = btn.dataset.hwweek;
@@ -1162,7 +1173,14 @@ function homeworkHtml(){
     imgs = '<img src="'+esc(w.img)+'" alt="'+esc(w.range)+'の宿題" style="width:100%;border-radius:10px;display:block;margin-top:12px">';
   }
 
-  return tabs
+  // レベルをまだ選んでいない人にだけ、最新週のところで1行だけ案内する（選んだら出ない）
+  var hint = (!isGuide && sel === weeks.length - 1 && HW.ready && state.user && !state.user.level)
+    ? '<button type="button" class="levelHint" data-levelhint="1">'
+      + '<span><b>宿題のレベルを選ぶと</b>、ホームと自分のページに今週の進み具合が出ます（任意）</span>'
+      + '<span class="colArrow" style="flex:0 0 auto">›</span></button>'
+    : '';
+
+  return tabs + hint
     + '<div class="card" style="margin-bottom:10px">' + head + imgs + '</div>'
     + '<p class="lineNote">LINEで配信されたものを、あとからまとめています。</p>';
 }
