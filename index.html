@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261011-2 （公開中の版を確認するための目印） -->
+<!-- build: 20261011-3 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -669,7 +669,6 @@ var state = {
   inputMenu: null,     // 記録するで選んでいる宿題の種類（long / easy / strength / other）
   pickLevel: false,    // trueのとき、記録するでレベルを選び直す画面を出す
   homeworkWeek: null,  // 宿題タブで開いている週（nullなら最新週、'guide'なら宿題ガイド）
-  homeworkGuidePage: 0, // 宿題ガイドの何ページ目を開いているか
   columnDate: null     // コラムタブで開いているコラム（nullなら一覧）
 };
 
@@ -1094,7 +1093,6 @@ async function renderGuideTab(el){
     btn.onclick = function(){
       var v = btn.dataset.hwweek;
       state.homeworkWeek = (v === 'guide') ? 'guide' : Number(v);
-      state.homeworkGuidePage = 0;
       renderGuideTab(el);
     };
   });
@@ -1104,13 +1102,6 @@ async function renderGuideTab(el){
       state.columnDate = btn.dataset.coldate || null;
       renderGuideTab(el);
       window.scrollTo(0, 0);
-    };
-  });
-
-  el.querySelectorAll('[data-hwpage]').forEach(function(btn){
-    btn.onclick = function(){
-      state.homeworkGuidePage = Number(btn.dataset.hwpage);
-      renderGuideTab(el);
     };
   });
 }
@@ -1196,17 +1187,12 @@ function homeworkHtml(){
 
   var head, imgs;
   if(isGuide){
-    var page = state.homeworkGuidePage;
-    if(typeof page !== 'number' || page < 0 || page >= guide.pages.length) page = 0;
-    state.homeworkGuidePage = page;
+    // 全3ページをそのまま縦に並べる（ページを切り替えるより、そのままスクロールするほうが読みやすい）
     head = '<h3>'+esc(guide.title)+'</h3>'
-      + '<div class="sub" style="margin-top:2px">'+esc(guide.note)+'</div>'
-      + '<div class="monthTabs" style="margin-top:12px;margin-bottom:0">'
-      +   guide.pages.map(function(_, i){
-            return '<button type="button" class="monthTab'+(i===page?' active':'')+'" data-hwpage="'+i+'">'+(i+1)+'ページ目</button>';
-          }).join('')
-      + '</div>';
-    imgs = '<img src="'+esc(guide.pages[page])+'" alt="宿題ガイド '+(page+1)+'ページ目" style="width:100%;border-radius:10px;display:block;margin-top:12px">';
+      + '<div class="sub" style="margin-top:2px">'+esc(guide.note)+'（全'+guide.pages.length+'ページ）</div>';
+    imgs = guide.pages.map(function(src, i){
+      return '<img src="'+esc(src)+'" alt="宿題ガイド '+(i+1)+'ページ目" style="width:100%;border-radius:10px;display:block;margin-top:12px">';
+    }).join('');
   } else {
     var w = weeks[sel];
     head = '<h3>'+esc(w.range)+'</h3>'
