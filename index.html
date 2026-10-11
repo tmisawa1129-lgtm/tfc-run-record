@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261011-1 （公開中の版を確認するための目印） -->
+<!-- build: 20261011-2 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -202,6 +202,11 @@
 
   /* ---------- monthly tabs ---------- */
   .monthTabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px}
+  /* 横に並びきらないときだけ、端をうっすら消して「まだ続きがある」ことを見せる */
+  .monthTabs.canScroll{--mL:transparent 0,#000 24px;--mR:#000 calc(100% - 24px),transparent 100%;
+    -webkit-mask-image:linear-gradient(to right,var(--mL),var(--mR));mask-image:linear-gradient(to right,var(--mL),var(--mR))}
+  .monthTabs.canScroll.atStart{--mL:#000 0,#000 0}
+  .monthTabs.canScroll.atEnd{--mR:#000 100%,#000 100%}
   .monthTab{background:var(--card2);color:var(--muted);border:1px solid var(--line2);padding:6px 14px;border-radius:100px;font-size:12.5px;font-weight:700;white-space:nowrap;flex-shrink:0}
   .monthTab.active{background:var(--accent);color:#180d08;border-color:var(--accent)}
   .monthSummary{font-size:13px;color:var(--muted);margin-bottom:14px}
@@ -970,6 +975,34 @@ function openMyPage(){
   window.scrollTo(0, 0);
 }
 
+// 横に並びきらないタブ（週・月など）に、スクロールできるとわかる見た目を付ける。
+// あわせて、選んでいるタブが画面の外にいたら見える位置まで寄せる
+function wireTabScroll(root){
+  (root || document).querySelectorAll('.monthTabs').forEach(function(row){
+    // はみ出しがごく僅かなときは、端を消すとかえって切れて見えるので何もしない
+    if(row.scrollWidth - row.clientWidth <= 12){
+      row.classList.remove('canScroll','atStart','atEnd');
+      return;
+    }
+    row.classList.add('canScroll');
+    var mark = function(){
+      row.classList.toggle('atStart', row.scrollLeft <= 1);
+      row.classList.toggle('atEnd', row.scrollLeft >= row.scrollWidth - row.clientWidth - 1);
+    };
+    if(!row.dataset.scrollWired){
+      row.addEventListener('scroll', mark, {passive:true});
+      row.dataset.scrollWired = '1';
+    }
+    var on = row.querySelector('.monthTab.active');
+    if(on){
+      var left = on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2;
+      row.scrollLeft = Math.max(0, Math.min(left, row.scrollWidth - row.clientWidth));
+    }
+    mark();
+  });
+}
+window.addEventListener('resize', function(){ wireTabScroll(); });
+
 // 埋め込みの高さを「画面の下端（スマホは下のタブの上）まで」に合わせる
 function fitEmbed(){
   var f = $('embedFrame');
@@ -1048,6 +1081,7 @@ async function renderGuideTab(el){
   });
 
   fitEmbed();
+  wireTabScroll(el);
 
   el.querySelectorAll('[data-levelhint]').forEach(function(btn){
     btn.onclick = function(){
@@ -1663,6 +1697,8 @@ function renderMonthlyRecords(containerEl, records, withActions, onChange, stren
       + '<div class="monthSummary">'+monthLabel(current)+'の合計：<b>'+total.toFixed(1)+' km</b>（'+recs.length+'件）</div>'
       + recordsTableHtml(recs, withActions, strengthDates)
       + strengthOnlyHtml(current, recs, strengthDates);
+
+    wireTabScroll(containerEl);
 
     containerEl.querySelectorAll('.monthTab').forEach(function(btn){
       btn.onclick = function(){ current = btn.dataset.month; draw(); };
