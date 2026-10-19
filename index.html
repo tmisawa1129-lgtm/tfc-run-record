@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261019-1 （公開中の版を確認するための目印） -->
+<!-- build: 20261019-2 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -192,6 +192,11 @@
   .colText{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.85;margin-top:14px;color:var(--text)}
   .colText a{word-break:break-all}
   .colFigLabel{font-size:12px;color:var(--muted);font-weight:700;margin:18px 0 6px}
+  /* 画像を載せられないときに、言葉だけ残す引用 */
+  .colQuote{margin:20px 0 0;padding:16px 16px 14px;border-left:3px solid var(--accent);background:var(--card2);border-radius:0 10px 10px 0}
+  .colQuote p{margin:0;font-size:15px;font-weight:700;line-height:1.75}
+  .colQuote cite{display:block;margin-top:8px;font-size:12px;color:var(--muted);font-style:normal}
+  .colQuote .colQuoteNote{display:block;margin-top:10px;font-size:11.5px;color:var(--muted)}
   .card .note{color:var(--muted);font-size:12.5px}
 
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -1250,6 +1255,17 @@ function columnsHtml(){
           return '<div class="colFigLabel">図'+(i+1)+'</div>'
             + '<img src="'+esc(src)+'" alt="'+esc(open.title)+' 図'+(i+1)+'" loading="lazy" style="width:100%;border-radius:10px;display:block">';
         }).join('')
+    +   quoteHtml(open.quote)
+    + '</div>';
+}
+
+/* 画像をそのまま載せられないとき（漫画のコマなど）に、言葉だけ残す */
+function quoteHtml(q){
+  if(!q || !q.text) return '';
+  return '<div class="colQuote">'
+    + '<p>「'+esc(q.text)+'」</p>'
+    + (q.source ? '<cite>'+esc(q.source)+'</cite>' : '')
+    + (q.note ? '<span class="colQuoteNote">'+esc(q.note)+'</span>' : '')
     + '</div>';
 }
 
