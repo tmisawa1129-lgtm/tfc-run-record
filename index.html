@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261021-1 （公開中の版を確認するための目印） -->
+<!-- build: 20261021-2 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -677,6 +677,15 @@ var state = {
   columnDate: null     // コラムタブで開いているコラム（nullなら一覧）
 };
 
+/* 先生の講義でもらった資料（PDF）。TFCメンバー向けに配られたものだけを置く。
+   アーカイブ動画のURLとGoogleドライブのリンクは「転載・共有はご遠慮ください」とあるので置かない。 */
+var LECTURE_FILES = [
+  { file: 'files/20261020_レース本番の組み立て方.pdf', label: 'レース本番の組み立て方',
+    desc: '第3回オンライン講義（10/20）の資料。1週間前から当日スタートまでの過ごし方。全23ページ' },
+  { file: 'files/20261020_持ち物リスト_過ごし方.pdf', label: '持ち物リスト＆過ごし方',
+    desc: 'そのまま印刷して使えるチェックリスト。全3ページ' }
+];
+
 var EXTERNAL_LINKS = {
   guide1: { label: 'TFC ナレッジベース', short: 'ナレッジベース', url: 'https://marathontraining-guides.netlify.app/',
             desc: '先生がまとめたトレーニングの知識集。心拍ゾーン、ケガの予防、栄養、レースの準備など。' },
@@ -1166,7 +1175,7 @@ function monthlyHtml(){
 
 /* リンクタブの中身。外部サイトの一覧（選ぶと埋め込みで開く） */
 function linksHtml(){
-  return '<div class="card" style="padding:4px 0;margin-bottom:26px">'
+  return '<div class="card" style="padding:4px 0;margin-bottom:22px">'
     + Object.keys(EXTERNAL_LINKS).map(function(k){
         var l = EXTERNAL_LINKS[k];
         return '<button type="button" class="linkRow" data-guide="'+k+'">'
@@ -1174,7 +1183,18 @@ function linksHtml(){
           + '<span class="colArrow">›</span>'
           + '</button>';
       }).join('')
-    + '</div>';
+    + '</div>'
+    + (LECTURE_FILES.length
+        ? '<div class="colFigLabel" style="margin-top:0">先生の講義資料</div>'
+          + '<div class="card" style="padding:4px 0;margin-bottom:10px">'
+          + LECTURE_FILES.map(function(f){
+              return '<a class="linkRow" href="'+esc(f.file)+'" target="_blank" rel="noopener">'
+                + '<span class="linkRowMain"><b>'+esc(f.label)+'</b><span>'+esc(f.desc || '')+'</span></span>'
+                + '<span class="colArrow">↗</span></a>';
+            }).join('')
+          + '</div>'
+          + '<p class="lineNote">PDFが開きます。アーカイブ動画とGoogleドライブのリンクは、先生から転載しないよう案内があるのでLINEのトークから見てください。</p>'
+        : '');
 }
 
 /* 宿題タブの中身。週ごとの配布資料と、最初の宿題ガイドを画像で見せる */
