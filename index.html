@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261021-3 （公開中の版を確認するための目印） -->
+<!-- build: 20261021-4 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -683,9 +683,9 @@ var state = {
 /* 先生の講義でもらった資料（PDF）。TFCメンバー向けに配られたものだけを置く。
    アーカイブ動画のURLとGoogleドライブのリンクは「転載・共有はご遠慮ください」とあるので置かない。 */
 var LECTURE_FILES = [
-  { file: 'files/20261020_レース本番の組み立て方.pdf', label: 'レース本番の組み立て方',
-    desc: '第3回オンライン講義（10/20）の資料。1週間前から当日スタートまでの過ごし方。全23ページ' },
-  { file: 'files/20261020_持ち物リスト_過ごし方.pdf', label: '持ち物リスト＆過ごし方',
+  { date: '20261020', file: 'files/20261020_レース本番の組み立て方.pdf', label: 'レース本番の組み立て方',
+    desc: '1週間前から当日スタートまでの過ごし方。全23ページ' },
+  { date: '20261020', file: 'files/20261020_持ち物リスト_過ごし方.pdf', label: '持ち物リスト＆過ごし方',
     desc: 'そのまま印刷して使えるチェックリスト。全3ページ' }
 ];
 
@@ -1166,7 +1166,7 @@ async function renderGuideTab(el){
       ? '<div class="embedHead"><button type="button" class="ghost tiny" data-guide="links">← リンク一覧</button>'
         + '<a href="'+esc(f.file)+'" target="_blank" rel="noopener">PDFで開く・印刷する ↗</a></div>'
         + '<h3 style="margin:0 0 2px">'+esc(f.label)+'</h3>'
-        + '<div class="sub" style="margin:0 0 12px">'+esc(f.desc || '')+'</div>'
+        + '<div class="sub" style="margin:0 0 12px">'+esc(mdLabel(f.date))+'の講義資料／'+esc(f.desc || '')+'</div>'
         + '<div id="pdfBox" style="margin-bottom:26px"></div>'
       : '';
   }
@@ -1260,6 +1260,31 @@ function scheduleHtml(){
     + '</div>';
 }
 
+/* リンクタブの下に並べる講義資料。配信日ごとにまとめる（新しい日付が上） */
+function lectureFilesHtml(){
+  if(!LECTURE_FILES.length) return '';
+  var days = [];
+  LECTURE_FILES.forEach(function(f, i){
+    var d = days.filter(function(x){ return x.date === f.date; })[0];
+    if(!d){ d = { date: f.date, items: [] }; days.push(d); }
+    d.items.push({ f: f, i: i });
+  });
+  days.sort(function(a, b){ return a.date < b.date ? 1 : -1; });
+
+  return days.map(function(d){
+      return '<div class="colFigLabel" style="margin-top:0">'+esc(mdLabel(d.date))+'の講義資料</div>'
+        + '<div class="card" style="padding:4px 0;margin-bottom:16px">'
+        + d.items.map(function(x){
+            return '<button type="button" class="linkRow" data-guide="doc:'+x.i+'">'
+              + '<span class="linkRowMain"><b>'+esc(x.f.label)+'</b><span>'+esc(x.f.desc || '')+'</span></span>'
+              + '<span class="colArrow">›</span></button>';
+          }).join('')
+        + '</div>';
+    }).join('')
+    + '<p class="lineNote">アーカイブ動画とGoogleドライブのリンクは、先生から転載しないよう案内があるのでLINEのトークから見てください。</p>';
+}
+function mdLabel(d){ return Number(String(d).slice(4,6)) + '/' + Number(String(d).slice(6,8)); }
+
 /* 結果発表タブの中身。月ごとのページの一覧（タップすると資料タブの中に表示する） */
 function monthlyHtml(){
   return '<p class="lineNote" style="margin:0 0 10px">先生が毎月出している結果発表（MVP・ポイント）のページです。</p>'
@@ -1284,17 +1309,7 @@ function linksHtml(){
           + '</button>';
       }).join('')
     + '</div>'
-    + (LECTURE_FILES.length
-        ? '<div class="colFigLabel" style="margin-top:0">先生の講義資料</div>'
-          + '<div class="card" style="padding:4px 0;margin-bottom:10px">'
-          + LECTURE_FILES.map(function(f, i){
-              return '<button type="button" class="linkRow" data-guide="doc:'+i+'">'
-                + '<span class="linkRowMain"><b>'+esc(f.label)+'</b><span>'+esc(f.desc || '')+'</span></span>'
-                + '<span class="colArrow">›</span></button>';
-            }).join('')
-          + '</div>'
-          + '<p class="lineNote">アーカイブ動画とGoogleドライブのリンクは、先生から転載しないよう案内があるのでLINEのトークから見てください。</p>'
-        : '');
+    + lectureFilesHtml();
 }
 
 /* 宿題タブの中身。週ごとの配布資料と、最初の宿題ガイドを画像で見せる */
