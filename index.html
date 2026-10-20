@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261021-2 （公開中の版を確認するための目印） -->
+<!-- build: 20261021-3 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -177,6 +177,9 @@
   .embedHead{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;margin:-4px 0 8px}
   .embedWrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
   .embedWrap iframe{display:block;width:100%;height:70vh;border:0}
+  /* PDFをページごとに描いて並べる（iPhoneのSafariは枠に入れると1ページ目しか出ないため） */
+  .pdfPage{width:100%;display:block;border-radius:10px;margin-bottom:10px;background:var(--card2)}
+  .pdfNote{font-size:12px;color:var(--muted);margin:0 0 10px}
   body.embedMode footer{display:none}
   body.embedMode{overflow:hidden}
   /* （旧）説明＋開くボタン */
@@ -995,6 +998,82 @@ function openMyPage(){
   window.scrollTo(0, 0);
 }
 
+/* ---- PDFの埋め込み表示 ----
+   iPhoneのSafariはPDFを<iframe>に入れても1ページ目しか出ないので、
+   pdf.js でページを1枚ずつ描いて縦に並べる。画面に入った分だけ描く。 */
+var PDFJS_VER = '3.11.174';
+var pdfjsPromise = null;
+function loadPdfJs(){
+  if(pdfjsPromise) return pdfjsPromise;
+  pdfjsPromise = new Promise(function(resolve, reject){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/'+PDFJS_VER+'/pdf.min.js';
+    s.onload = function(){
+      var lib = window.pdfjsLib;
+      if(!lib){ reject(new Error('pdf.js を読み込めませんでした')); return; }
+      lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/'+PDFJS_VER+'/pdf.worker.min.js';
+      resolve(lib);
+    };
+    s.onerror = function(){ pdfjsPromise = null; reject(new Error('pdf.js を読み込めませんでした')); };
+    document.head.appendChild(s);
+  });
+  return pdfjsPromise;
+}
+
+var pdfRenderToken = 0;
+async function renderPdfInto(box, url){
+  var token = ++pdfRenderToken;
+  box.innerHTML = '<p class="pdfNote">資料を読み込み中…</p>';
+  try{
+    var lib = await loadPdfJs();
+    var doc = await lib.getDocument(url).promise;
+    if(token !== pdfRenderToken) return;
+    box.innerHTML = '';
+
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var slots = [];
+    for(var i = 1; i <= doc.numPages; i++){
+      var page = await doc.getPage(i);
+      if(token !== pdfRenderToken) return;
+      var vp = page.getViewport({ scale: 1 });
+      var cv = document.createElement('canvas');
+      cv.className = 'pdfPage';
+      // 先に縦横比だけ決めておく（描く前でも場所が確保され、スクロールが飛ばない）
+      cv.style.aspectRatio = vp.width + ' / ' + vp.height;
+      box.appendChild(cv);
+      slots.push({ page: page, canvas: cv, done: false });
+    }
+
+    var draw = function(slot){
+      if(slot.done || token !== pdfRenderToken) return;
+      slot.done = true;
+      var w = slot.canvas.clientWidth || box.clientWidth || 360;
+      var base = slot.page.getViewport({ scale: 1 });
+      var vp = slot.page.getViewport({ scale: (w / base.width) * dpr });
+      slot.canvas.width = Math.round(vp.width);
+      slot.canvas.height = Math.round(vp.height);
+      slot.page.render({ canvasContext: slot.canvas.getContext('2d'), viewport: vp });
+    };
+
+    if('IntersectionObserver' in window){
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if(!e.isIntersecting) return;
+          var slot = slots.filter(function(s){ return s.canvas === e.target; })[0];
+          if(slot){ draw(slot); io.unobserve(e.target); }
+        });
+      }, { rootMargin: '600px 0px' });
+      slots.forEach(function(s){ io.observe(s.canvas); });
+    }else{
+      slots.forEach(draw);
+    }
+  }catch(e){
+    if(token !== pdfRenderToken) return;
+    box.innerHTML = '<p class="pdfNote">資料を表示できませんでした。'
+      + '<a href="'+esc(url)+'" target="_blank" rel="noopener">PDFを開く ↗</a></p>';
+  }
+}
+
 // 横に並びきらないタブ（週・月など）に、スクロールできるとわかる見た目を付ける。
 // あわせて、選んでいるタブが画面の外にいたら見える位置まで寄せる
 function wireTabScroll(root){
@@ -1052,6 +1131,10 @@ function embedTarget(key){
   if(l) return { url: l.url, label: l.label, back: 'links', backLabel: 'リンク一覧' };
   var m = MONTHLY.filter(function(x){ return 'mvp' + x.month === key; })[0];
   if(m) return { url: m.url, label: m.label + ' MVP発表', back: 'monthly', backLabel: '結果発表' };
+  if(String(key).indexOf('doc:') === 0){
+    var f = LECTURE_FILES[Number(key.slice(4))];
+    if(f) return { url: f.file, label: f.label, back: 'links', backLabel: 'リンク一覧', pdf: true };
+  }
   return null;
 }
 
@@ -1077,6 +1160,16 @@ async function renderGuideTab(el){
   else if(state.guideSite === 'schedule') body = scheduleHtml();
   else if(state.guideSite === 'links') body = linksHtml();
   else if(state.guideSite === 'monthly') body = monthlyHtml();
+  else if(state.guideSite.indexOf('doc:') === 0){
+    var f = LECTURE_FILES[Number(state.guideSite.slice(4))];
+    body = f
+      ? '<div class="embedHead"><button type="button" class="ghost tiny" data-guide="links">← リンク一覧</button>'
+        + '<a href="'+esc(f.file)+'" target="_blank" rel="noopener">PDFで開く・印刷する ↗</a></div>'
+        + '<h3 style="margin:0 0 2px">'+esc(f.label)+'</h3>'
+        + '<div class="sub" style="margin:0 0 12px">'+esc(f.desc || '')+'</div>'
+        + '<div id="pdfBox" style="margin-bottom:26px"></div>'
+      : '';
+  }
   else {
     // 別サイトは埋め込み表示。高さを画面の残りぴったりにして、ページ全体はスクロールさせない
     // （埋め込みの中とページの二重スクロールでスマホが操作しにくくなるのを防ぐ）
@@ -1102,6 +1195,13 @@ async function renderGuideTab(el){
 
   fitEmbed();
   wireTabScroll(el);
+
+  var pdfBox = el.querySelector('#pdfBox');
+  if(pdfBox){
+    renderPdfInto(pdfBox, LECTURE_FILES[Number(state.guideSite.slice(4))].file);
+  }else{
+    pdfRenderToken++;   // 別の画面に移ったら、描きかけの資料は捨てる
+  }
 
   el.querySelectorAll('[data-levelhint]').forEach(function(btn){
     btn.onclick = function(){
@@ -1187,13 +1287,13 @@ function linksHtml(){
     + (LECTURE_FILES.length
         ? '<div class="colFigLabel" style="margin-top:0">先生の講義資料</div>'
           + '<div class="card" style="padding:4px 0;margin-bottom:10px">'
-          + LECTURE_FILES.map(function(f){
-              return '<a class="linkRow" href="'+esc(f.file)+'" target="_blank" rel="noopener">'
+          + LECTURE_FILES.map(function(f, i){
+              return '<button type="button" class="linkRow" data-guide="doc:'+i+'">'
                 + '<span class="linkRowMain"><b>'+esc(f.label)+'</b><span>'+esc(f.desc || '')+'</span></span>'
-                + '<span class="colArrow">↗</span></a>';
+                + '<span class="colArrow">›</span></button>';
             }).join('')
           + '</div>'
-          + '<p class="lineNote">PDFが開きます。アーカイブ動画とGoogleドライブのリンクは、先生から転載しないよう案内があるのでLINEのトークから見てください。</p>'
+          + '<p class="lineNote">アーカイブ動画とGoogleドライブのリンクは、先生から転載しないよう案内があるのでLINEのトークから見てください。</p>'
         : '');
 }
 
