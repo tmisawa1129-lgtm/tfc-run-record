@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: 20261109-1 （公開中の版を確認するための目印） -->
+<!-- build: 20261114-1 （公開中の版を確認するための目印） -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -451,6 +451,15 @@ function formatPace(secPerKm){
   return m + ':' + String(s).padStart(2,'0');
 }
 
+/* 記録の並び順。日付は新しい順、同じ日の中は走った順（＝登録した順）に並べる。
+   例：11/14は朝の練習会が先、昼のロング走が後 */
+function cmpRecord(a, b){
+  if(a.date !== b.date) return a.date < b.date ? 1 : -1;
+  var ta = a.created_at || '', tb = b.created_at || '';
+  if(ta === tb) return 0;
+  return ta < tb ? -1 : 1;
+}
+
 /* ---------------- ローカル（デモ）バックエンド ---------------- */
 var LocalBackend = (function(){
   var KEY = 'tfc_team_demo_v1';
@@ -506,7 +515,7 @@ var LocalBackend = (function(){
     async listMyRecords(memberId){
       var s = load();
       return s.records.filter(function(r){ return r.member_id === memberId; })
-        .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+        .sort(cmpRecord);
     },
     async deleteRecord(id){
       var s = load();
@@ -533,7 +542,7 @@ var LocalBackend = (function(){
       var weekStart = weekStartStr();
       return s.members.filter(function(m){ return m.role === 'member'; }).map(function(m){
         var recs = s.records.filter(function(r){ return r.member_id === m.id; })
-          .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+          .sort(cmpRecord);
         var monthRecs = recs.filter(function(r){ return r.date.slice(0,7) === thisMonth; });
         var weekRecs = recs.filter(function(r){ return r.date >= weekStart; });
         return {
@@ -604,7 +613,7 @@ var SupabaseBackend = (function(){
       return r.data;
     },
     async listMyRecords(memberId){
-      var r = await client().from('records').select('*').eq('member_id', memberId).is('deleted_at', null).order('date', {ascending:false});
+      var r = await client().from('records').select('*').eq('member_id', memberId).is('deleted_at', null).order('date', {ascending:false}).order('created_at', {ascending:true});
       if(r.error) throw r.error;
       return r.data;
     },
@@ -631,7 +640,7 @@ var SupabaseBackend = (function(){
       var weekStart = weekStartStr();
       var mr = await client().from('members').select(hwReady ? 'id,name,level' : 'id,name').eq('role','member').order('name');
       if(mr.error) throw mr.error;
-      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe,duration_text'+(hwReady ? ',menu' : '')).is('deleted_at', null).order('date', {ascending:false});
+      var rr = await client().from('records').select('member_id,date,distance_km,memo,rpe,duration_text,created_at'+(hwReady ? ',menu' : '')).is('deleted_at', null).order('date', {ascending:false}).order('created_at', {ascending:true});
       if(rr.error) throw rr.error;
       var byMember = {};
       rr.data.forEach(function(rec){
@@ -1753,7 +1762,7 @@ async function renderStrengthInput(el, menuBar){
   var ws = weekStartStr();
   var logs = await Backend.listStrength(ws).catch(function(){ return []; });
   var mine = logs.filter(function(x){ return x.member_id === state.user.id; })
-                 .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+                 .sort(cmpRecord);
   el.innerHTML = whoBarHtml() + menuBar
     + '<section><div class="card">'
     +   '<div class="dateField" style="max-width:260px"><label>日付</label><input type="date" id="sDate" value="'+todayStr()+'"></div>'
@@ -1853,7 +1862,7 @@ function renderMonthlyRecords(containerEl, records, withActions, onChange, stren
   var current = months[0];
 
   function draw(){
-    var recs = byMonth[current].slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+    var recs = byMonth[current].slice().sort(cmpRecord);
     var total = recs.reduce(function(a,r){ return a + Number(r.distance_km||0); }, 0);
     containerEl.innerHTML =
       '<div class="monthTabs">' + months.map(function(k){
